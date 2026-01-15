@@ -186,12 +186,12 @@ const Explore = () => {
             Explorar Servicios
           </h1>
           <div className="flex flex-col sm:flex-row gap-4">
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <Select value={locationFilter || "all"} onValueChange={(val) => setLocationFilter(val === "all" ? "" : val)}>
               <SelectTrigger className="w-full sm:w-64 rounded-xl" data-testid="location-filter">
                 <SelectValue placeholder="Filtrar por localidad" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas las localidades</SelectItem>
+                <SelectItem value="all">Todas las localidades</SelectItem>
                 {locations.map(loc => (
                   <SelectItem key={loc} value={loc}>{loc}</SelectItem>
                 ))}
