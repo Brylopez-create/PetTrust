@@ -1,0 +1,159 @@
+{
+  "brand_identity": {
+    "name": "PetTrust Bogotá",
+    "core_values": ["Safety", "Premium Care", "Warmth", "Trust"],
+    "emotional_tone": "Like a private school for your furry child. Professional yet loving.",
+    "target_audience": "Affluent pet owners in Usaquén, Chapinero, Colina Campestre who view pets as children."
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "name": "Safe Mint",
+        "hex": "#34D399",
+        "tailwind": "emerald-400",
+        "usage": "Primary Actions, Success States, Trust Badges"
+      },
+      "secondary": {
+        "name": "Trust Blue",
+        "hex": "#7DD3FC",
+        "tailwind": "sky-300",
+        "usage": "Secondary Actions, Info Cards, Map Markers"
+      },
+      "accent": {
+        "name": "Warm Peach",
+        "hex": "#FDBA74",
+        "tailwind": "orange-300",
+        "usage": "Highlights, 'New' tags, Notifications"
+      },
+      "neutral": {
+        "name": "Warm Sand",
+        "hex": "#FAFAF9",
+        "tailwind": "stone-50",
+        "usage": "App Backgrounds, Section Backgrounds"
+      },
+      "text": {
+        "primary": "#1C1917",
+        "secondary": "#57534E",
+        "light": "#A8A29E"
+      }
+    },
+    "rules": [
+      "Use Light Mode by default to convey cleanliness and safety.",
+      "Avoid pure black (#000000). Use Stone-900 (#1C1917) for text.",
+      "Gradients should be subtle and pastel (e.g., bg-gradient-to-br from-emerald-50 to-stone-50).",
+      "NO dark mode for the marketing pages. Dashboard can have a toggle."
+    ]
+  },
+  "typography": {
+    "headings": {
+      "family": "Nunito, sans-serif",
+      "weights": ["700", "800"],
+      "style": "Rounded, friendly, but substantial.",
+      "usage": "All H1-H6 tags. Hero text."
+    },
+    "body": {
+      "family": "Manrope, sans-serif",
+      "weights": ["400", "500", "600"],
+      "style": "Clean, legible, modern.",
+      "usage": "Paragraphs, UI labels, Inputs."
+    },
+    "installation": "Import from Google Fonts: https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&family=Nunito:wght@700;800&display=swap"
+  },
+  "layout": {
+    "spacing": {
+      "scale": "Generous. Use p-6, p-8, p-12 for containers.",
+      "rule": "Containers with borders MUST have internal padding (p-6+) to prevent text collision."
+    },
+    "grids": {
+      "marketing": {
+        "name": "The Tetris Grid",
+        "classes": "grid grid-cols-1 md:grid-cols-12 gap-8",
+        "description": "Asymmetrical layout for testimonials and features. Mix col-span-4, col-span-8, and col-span-6."
+      },
+      "dashboard": {
+        "name": "Soft Density",
+        "classes": "grid grid-cols-1 md:grid-cols-3 gap-6",
+        "description": "Card-based layout. Every card must have rounded-3xl."
+      }
+    },
+    "container": {
+      "maxWidth": "max-w-7xl",
+      "center": "mx-auto"
+    }
+  },
+  "components": {
+    "buttons": {
+      "style": "Pill-shaped (rounded-full).",
+      "primary": "bg-emerald-400 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-100 transition-transform hover:-translate-y-0.5",
+      "secondary": "bg-white text-stone-700 border-2 border-stone-100 hover:border-emerald-200 hover:text-emerald-600"
+    },
+    "cards": {
+      "style": "rounded-3xl bg-white border border-stone-100 shadow-sm hover:shadow-md transition-shadow duration-300",
+      "padding": "p-6 or p-8"
+    },
+    "inputs": {
+      "style": "rounded-xl border-stone-200 bg-stone-50 focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 transition-all",
+      "height": "h-12"
+    },
+    "badges": {
+      "verified": "bg-sky-100 text-sky-700 rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1",
+      "insured": "bg-emerald-100 text-emerald-700 rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-white/70 border border-white/40 shadow-sm",
+    "shadows": "Soft, colored shadows. e.g., shadow-emerald-100/50",
+    "borders": "Subtle. border-stone-100 or border-stone-200.",
+    "icons": "Use Lucide React with rounded stroke endings. Stroke width 2px."
+  },
+  "assets": {
+    "hero_images": [
+      {
+        "url": "https://images.unsplash.com/photo-1761959883667-26cb43103ef0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwxfHxoYXBweSUyMGRvZyUyMHJ1bm5pbmclMjBpbiUyMHBhcmslMjBzdW5ueXxlbnwwfHx8fDE3Njg1MTMwNDB8MA&ixlib=rb-4.1.0&q=85",
+        "alt": "Happy Corgi running in park",
+        "usage": "Main Hero Background or Feature Image"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1760528543365-2a51c306095a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwyfHxoYXBweSUyMGRvZyUyMHJ1bm5pbmclMjBpbiUyMHBhcmslMjBzdW5ueXxlbnwwfHx8fDE3Njg1MTMwNDB8MA&ixlib=rb-4.1.0&q=85",
+        "alt": "Jack Russell jumping",
+        "usage": "Action shots for 'Active Walks' section"
+      }
+    ],
+    "walker_profiles": [
+      {
+        "url": "https://images.unsplash.com/photo-1620418142117-55d1848a065e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBkb2clMjB3YWxrZXIlMjB3aXRoJTIwZG9ncyUyMGNpdHl8ZW58MHx8fHwxNzY4NTEzMDQyfDA&ixlib=rb-4.1.0&q=85",
+        "alt": "Professional walker with dogs",
+        "usage": "Walker Profile Example"
+      }
+    ],
+    "daycare_interiors": [
+      {
+        "url": "https://images.unsplash.com/photo-1749702965686-5f93a8a4eca7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTB8MHwxfHNlYXJjaHwzfHxjb3p5JTIwbW9kZXJuJTIwcGV0JTIwZGF5Y2FyZSUyMGludGVyaW9yfGVufDB8fHx8MTc2ODUxMzA0NHww&ixlib=rb-4.1.0&q=85",
+        "alt": "Modern wooden dog house",
+        "usage": "Daycare Facility Showcase"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "1. INSTALL FONTS: Add the Google Fonts link to the index.html head immediately.",
+    "2. CONFIGURE TAILWIND: Update tailwind.config.js to include the custom colors (Safe Mint, Trust Blue, Warm Sand).",
+    "3. COMPONENT OVERRIDES: Heavily customize Shadcn components. Remove the default 'slate' look. Use 'stone' and 'emerald' instead.",
+    "4. MAPS: When implementing the map, use a custom style that matches the pastel palette (no default Google Maps colors). Mock this if no API key.",
+    "5. TRUST SIGNALS: Every time a walker is shown, add a 'Verified' badge. This is the core value proposition.",
+    "6. MOBILE FIRST: Ensure the 'Book a Walk' button is always accessible on mobile (sticky bottom).",
+    "7. DATA-TESTID: Add data-testid to all interactive elements (buttons, inputs, cards)."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Avoid generic 'AI slop' designs. Be bold with spacing.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition. Eg: transition: all.",
+    "You MUST NOT center align the app container.",
+    "Always use modern button styles like pill-shaped.",
+    "NEVER use AI assistant Emoji characters like 🤖🧠 etc.",
+    "Every interaction needs micro-animations.",
+    "Use 2-3x more spacing than feels comfortable.",
+    "Use sonner for toasts."
+  ]
+}
