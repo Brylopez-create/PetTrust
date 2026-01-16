@@ -207,15 +207,33 @@ const Home = () => {
       </section>
 
       <footer className="bg-stone-900 text-stone-300 py-12 px-4">
-        <div className="max-w-7xl mx-auto text-center">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-xl">🐾</span>
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center space-x-2 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xl">🐾</span>
+              </div>
+              <span className="text-xl font-heading font-bold text-white">PetTrust Bogotá</span>
             </div>
-            <span className="text-xl font-heading font-bold text-white">PetTrust Bogotá</span>
+            <p className="text-sm mb-4">Cuidado premium para mascotas en Bogotá</p>
           </div>
-          <p className="text-sm mb-4">Cuidado premium para mascotas en Bogotá</p>
-          <p className="text-xs text-stone-400">
+          
+          <div className="flex flex-wrap justify-center gap-6 mb-6 text-sm">
+            <a href="/privacidad.html" target="_blank" className="hover:text-emerald-400 transition-colors">
+              Política de Privacidad
+            </a>
+            <a href="/terminos.html" target="_blank" className="hover:text-emerald-400 transition-colors">
+              Términos y Condiciones
+            </a>
+            <a href="mailto:soporte@pettrust.co" className="hover:text-emerald-400 transition-colors">
+              Soporte
+            </a>
+            <a href="https://wa.me/573001234567" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors">
+              WhatsApp
+            </a>
+          </div>
+          
+          <p className="text-xs text-stone-400 text-center">
             © 2025 PetTrust Bogotá. Todos los derechos reservados.
           </p>
         </div>
