@@ -76,6 +76,7 @@ function App() {
           <Route path="/guarderias/:id" element={<DaycareProfile />} />
           <Route path="/reservar/:type/:id" element={user ? <Booking /> : <Navigate to="/login" />} />
           <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+          <Route path="/admin" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />
           <Route path="/tracking/:bookingId" element={user ? <Tracking /> : <Navigate to="/login" />} />
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
           <Route path="/registro" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
