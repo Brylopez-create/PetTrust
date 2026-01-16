@@ -93,6 +93,8 @@ class WalkerProfile(BaseModel):
     rating: float = 5.0
     reviews_count: int = 0
     price_per_walk: float = 25000
+    verification_status: str = "pending"
+    documents: List[str] = []
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class WalkerCreate(BaseModel):
@@ -119,6 +121,7 @@ class DaycareProfile(BaseModel):
     rating: float = 5.0
     reviews_count: int = 0
     price_per_day: float = 80000
+    verification_status: str = "pending"
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class DaycareCreate(BaseModel):
@@ -154,15 +157,20 @@ class Booking(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     owner_id: str
+    owner_name: Optional[str] = None
     pet_id: str
+    pet_name: Optional[str] = None
     service_type: str
     service_id: str
+    service_name: Optional[str] = None
     date: str
     time: Optional[str] = None
     status: str = "pending"
     price: float
     payment_status: str = "pending"
     payment_id: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class BookingCreate(BaseModel):
@@ -178,6 +186,7 @@ class Review(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     booking_id: str
     owner_id: str
+    owner_name: Optional[str] = None
     service_type: str
     service_id: str
     rating: int
@@ -217,6 +226,22 @@ class TrackingUpdate(BaseModel):
     latitude: float
     longitude: float
     timestamp: Optional[str] = None
+
+class Incident(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: str
+    reported_by: str
+    type: str
+    description: str
+    status: str = "open"
+    resolution: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class IncidentCreate(BaseModel):
+    booking_id: str
+    type: str
+    description: str
 
 @api_router.get("/")
 async def root():
@@ -275,10 +300,12 @@ async def create_walker(walker_data: WalkerCreate, current_user: dict = Depends(
     return walker
 
 @api_router.get("/walkers", response_model=List[WalkerProfile])
-async def get_walkers(location: Optional[str] = None):
+async def get_walkers(location: Optional[str] = None, verified_only: bool = False):
     query = {}
     if location:
         query["location"] = {"$regex": location, "$options": "i"}
+    if verified_only:
+        query["verified"] = True
     walkers = await db.walkers.find(query, {"_id": 0}).to_list(100)
     return walkers
 
@@ -288,6 +315,29 @@ async def get_walker(walker_id: str):
     if not walker:
         raise HTTPException(status_code=404, detail="Paseador no encontrado")
     return walker
+
+@api_router.patch("/walkers/{walker_id}/verify")
+async def verify_walker(walker_id: str, verified: bool, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores pueden verificar")
+    
+    await db.walkers.update_one(
+        {"id": walker_id},
+        {"$set": {"verified": verified, "verification_status": "approved" if verified else "rejected"}}
+    )
+    return {"message": "Estado de verificación actualizado"}
+
+@api_router.post("/walkers/{walker_id}/documents")
+async def upload_walker_document(walker_id: str, document: str, current_user: dict = Depends(get_current_user)):
+    walker = await db.walkers.find_one({"id": walker_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not walker:
+        raise HTTPException(status_code=404, detail="Perfil no encontrado")
+    
+    await db.walkers.update_one(
+        {"id": walker_id},
+        {"$push": {"documents": document}, "$set": {"verification_status": "pending"}}
+    )
+    return {"message": "Documento agregado"}
 
 @api_router.post("/daycares", response_model=DaycareProfile)
 async def create_daycare(daycare_data: DaycareCreate, current_user: dict = Depends(get_current_user)):
@@ -337,8 +387,14 @@ async def create_booking(booking_data: BookingCreate, current_user: dict = Depen
     if not pet:
         raise HTTPException(status_code=404, detail="Mascota no encontrada")
     
+    collection = "walkers" if booking_data.service_type == "walker" else "daycares"
+    service = await db[collection].find_one({"id": booking_data.service_id}, {"_id": 0})
+    
     booking = Booking(
         owner_id=current_user["id"],
+        owner_name=current_user["name"],
+        pet_name=pet["name"],
+        service_name=service.get("name") if service else "Servicio",
         **booking_data.model_dump()
     )
     await db.bookings.insert_one(booking.model_dump())
@@ -348,6 +404,8 @@ async def create_booking(booking_data: BookingCreate, current_user: dict = Depen
 async def get_my_bookings(current_user: dict = Depends(get_current_user)):
     if current_user["role"] == "owner":
         bookings = await db.bookings.find({"owner_id": current_user["id"]}, {"_id": 0}).to_list(100)
+    elif current_user["role"] == "admin":
+        bookings = await db.bookings.find({}, {"_id": 0}).to_list(100)
     else:
         profile_collection = "walkers" if current_user["role"] == "walker" else "daycares"
         profile = await db[profile_collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
@@ -356,14 +414,63 @@ async def get_my_bookings(current_user: dict = Depends(get_current_user)):
         bookings = await db.bookings.find({"service_id": profile["id"]}, {"_id": 0}).to_list(100)
     return bookings
 
-@api_router.patch("/bookings/{booking_id}")
+@api_router.get("/bookings/{booking_id}", response_model=Booking)
+async def get_booking(booking_id: str, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    return booking
+
+@api_router.patch("/bookings/{booking_id}/status")
 async def update_booking_status(booking_id: str, status: str, current_user: dict = Depends(get_current_user)):
     booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     if not booking:
         raise HTTPException(status_code=404, detail="Reserva no encontrada")
     
-    await db.bookings.update_one({"id": booking_id}, {"$set": {"status": status}})
-    return {"message": "Estado actualizado"}
+    update_data = {"status": status}
+    if status == "in_progress":
+        update_data["started_at"] = datetime.now(timezone.utc).isoformat()
+    elif status == "completed":
+        update_data["completed_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.bookings.update_one({"id": booking_id}, {"$set": update_data})
+    return {"message": "Estado actualizado", "status": status}
+
+@api_router.post("/bookings/{booking_id}/start")
+async def start_walk(booking_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "walker":
+        raise HTTPException(status_code=403, detail="Solo paseadores pueden iniciar paseos")
+    
+    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {"$set": {
+            "status": "in_progress",
+            "started_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    return {"message": "Paseo iniciado", "started_at": datetime.now(timezone.utc).isoformat()}
+
+@api_router.post("/bookings/{booking_id}/complete")
+async def complete_walk(booking_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "walker":
+        raise HTTPException(status_code=403, detail="Solo paseadores pueden finalizar paseos")
+    
+    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {"$set": {
+            "status": "completed",
+            "completed_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    return {"message": "Paseo completado", "completed_at": datetime.now(timezone.utc).isoformat()}
 
 @api_router.post("/bookings/{booking_id}/payment")
 async def process_payment(booking_id: str, payment_id: str, current_user: dict = Depends(get_current_user)):
@@ -383,8 +490,13 @@ async def create_review(review_data: ReviewCreate, current_user: dict = Depends(
     if not booking:
         raise HTTPException(status_code=404, detail="Reserva no encontrada")
     
+    existing_review = await db.reviews.find_one({"booking_id": review_data.booking_id}, {"_id": 0})
+    if existing_review:
+        raise HTTPException(status_code=400, detail="Ya calificaste este servicio")
+    
     review = Review(
         owner_id=current_user["id"],
+        owner_name=current_user["name"],
         **review_data.model_dump()
     )
     await db.reviews.insert_one(review.model_dump())
@@ -445,6 +557,49 @@ async def update_tracking(tracking_data: TrackingUpdate, current_user: dict = De
 async def get_tracking(booking_id: str):
     tracking = await db.tracking.find({"booking_id": booking_id}, {"_id": 0}).sort("timestamp", -1).to_list(100)
     return tracking
+
+@api_router.post("/incidents", response_model=Incident)
+async def create_incident(incident_data: IncidentCreate, current_user: dict = Depends(get_current_user)):
+    incident = Incident(
+        reported_by=current_user["id"],
+        **incident_data.model_dump()
+    )
+    await db.incidents.insert_one(incident.model_dump())
+    return incident
+
+@api_router.get("/incidents/{booking_id}", response_model=List[Incident])
+async def get_incidents(booking_id: str):
+    incidents = await db.incidents.find({"booking_id": booking_id}, {"_id": 0}).to_list(100)
+    return incidents
+
+@api_router.get("/admin/pending-verifications")
+async def get_pending_verifications(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores")
+    
+    walkers = await db.walkers.find({"verification_status": "pending"}, {"_id": 0}).to_list(100)
+    daycares = await db.daycares.find({"verification_status": "pending"}, {"_id": 0}).to_list(100)
+    
+    return {"walkers": walkers, "daycares": daycares}
+
+@api_router.get("/admin/stats")
+async def get_admin_stats(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores")
+    
+    total_bookings = await db.bookings.count_documents({})
+    total_walkers = await db.walkers.count_documents({})
+    total_users = await db.users.count_documents({})
+    completed_bookings = await db.bookings.count_documents({"status": "completed"})
+    pending_incidents = await db.incidents.count_documents({"status": "open"})
+    
+    return {
+        "total_bookings": total_bookings,
+        "total_walkers": total_walkers,
+        "total_users": total_users,
+        "completed_bookings": completed_bookings,
+        "pending_incidents": pending_incidents
+    }
 
 app.include_router(api_router)
 
