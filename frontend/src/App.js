@@ -7,6 +7,7 @@ import Explore from './pages/Explore';
 import WalkerProfile from './pages/WalkerProfile';
 import DaycareProfile from './pages/DaycareProfile';
 import Dashboard from './pages/Dashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import Booking from './pages/Booking';
 import Tracking from './pages/Tracking';
 import Login from './pages/Login';
