@@ -34,6 +34,15 @@ const Navbar = () => {
             </Link>
             {user ? (
               <>
+                <Button
+                  onClick={() => setShowSafety(true)}
+                  variant="ghost"
+                  className="text-emerald-600 hover:text-emerald-700"
+                  data-testid="safety-center-btn"
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Seguridad
+                </Button>
                 <Link to="/dashboard" className="text-stone-700 hover:text-emerald-600 font-medium transition-colors flex items-center gap-2">
                   <LayoutDashboard className="w-4 h-4" />
                   Dashboard
