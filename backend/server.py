@@ -97,6 +97,11 @@ class WalkerProfile(BaseModel):
     price_per_walk: float = 25000
     verification_status: str = "pending"
     documents: List[str] = []
+    capacity_max: int = 4
+    capacity_current: int = 0
+    radius_km: float = 5.0
+    is_active: bool = False
+    coordinates: Optional[Dict[str, float]] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class WalkerCreate(BaseModel):
