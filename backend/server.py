@@ -338,6 +338,91 @@ class SafetyCheckIn(BaseModel):
     status: str = "on_time"
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+# ============= SERVICE REQUESTS & INBOX MODELS =============
+
+class ServiceRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: Optional[str] = None
+    owner_id: str
+    owner_name: Optional[str] = None
+    pet_id: str
+    pet_name: Optional[str] = None
+    pet_breed: Optional[str] = None
+    service_type: str
+    requested_date: str
+    requested_time: str
+    requires_pickup: bool = False
+    pickup_location: Optional[Dict[str, float]] = None
+    pickup_address: Optional[str] = None
+    owner_location: Optional[Dict[str, float]] = None
+    matched_providers: List[str] = []
+    status: str = "pending"
+    accepted_by: Optional[str] = None
+    accepted_at: Optional[str] = None
+    expires_at: str = Field(default_factory=lambda: (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat())
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class ServiceRequestCreate(BaseModel):
+    pet_id: str
+    service_type: str
+    date: str
+    time: str
+    requires_pickup: bool = False
+    pickup_address: Optional[str] = None
+    pickup_lat: Optional[float] = None
+    pickup_lng: Optional[float] = None
+    owner_lat: Optional[float] = None
+    owner_lng: Optional[float] = None
+
+class ProviderInbox(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    provider_id: str
+    provider_type: str
+    request_id: str
+    pet_name: str
+    pet_breed: Optional[str] = None
+    pet_photo: Optional[str] = None
+    owner_name: str
+    service_date: str
+    service_time: str
+    distance_km: float = 0.0
+    earnings: float
+    is_read: bool = False
+    is_dismissed: bool = False
+    responded_at: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class ProviderStatusUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    capacity_max: Optional[int] = None
+    radius_km: Optional[float] = None
+
+# ============= WOMPI MOCK MODELS =============
+
+class WompiPaymentRequest(BaseModel):
+    booking_id: str
+    amount: float
+    currency: str = "COP"
+    customer_email: str
+    payment_method: str = "CARD"
+    card_token: Optional[str] = None
+
+class WompiTransaction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: str
+    amount: float
+    currency: str = "COP"
+    status: str = "PENDING"
+    payment_method: str
+    customer_email: str
+    reference: str = Field(default_factory=lambda: f"PETTRUST-{secrets.token_hex(8).upper()}")
+    wompi_id: str = Field(default_factory=lambda: f"wompi_{secrets.token_hex(12)}")
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    finalized_at: Optional[str] = None
+
 @api_router.get("/")
 async def root():
     return {"message": "PetTrust Bogotá API v1.0"}
