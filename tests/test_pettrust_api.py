@@ -326,8 +326,10 @@ class TestServiceRequests:
             )
             assert response.status_code == 200
             data = response.json()
-            assert "id" in data
-            assert "matched_providers" in data
+            # API returns request_id instead of id
+            assert "request_id" in data
+            assert "matched_providers_count" in data
+            assert data["status"] == "pending"
 
 
 class TestProviderInbox:
