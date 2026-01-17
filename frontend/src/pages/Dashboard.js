@@ -184,10 +184,17 @@ const Dashboard = () => {
                         {getStatusBadge(booking.status)}
                       </div>
 
-                      <div className="space-y-3 mb-4">
+                      {booking.service_name && (
+                        <p className="font-semibold text-stone-900 mb-2">{booking.service_name}</p>
+                      )}
+                      {booking.pet_name && (
+                        <p className="text-sm text-stone-600 mb-3">🐕 {booking.pet_name}</p>
+                      )}
+
+                      <div className="space-y-2 mb-4">
                         <div className="flex items-center gap-2 text-stone-600">
                           <CalendarDays className="w-4 h-4" />
-                          <span className="text-sm">{new Date(booking.date).toLocaleDateString()}</span>
+                          <span className="text-sm">{new Date(booking.date).toLocaleDateString('es-CO')}</span>
                         </div>
                         {booking.time && (
                           <div className="flex items-center gap-2 text-stone-600">
@@ -197,15 +204,30 @@ const Dashboard = () => {
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between pt-4 border-t border-stone-100">
-                        <span className="text-2xl font-heading font-bold text-stone-900">
-                          ${booking.price.toLocaleString()}
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xl font-heading font-bold text-stone-900">
+                          {formatPrice(booking.price)}
                         </span>
-                        {booking.status === 'confirmed' && booking.service_type === 'walker' && (
+                        {getPaymentBadge(booking.payment_status)}
+                      </div>
+
+                      <div className="flex gap-2 pt-3 border-t border-stone-100">
+                        {booking.payment_status !== 'paid' && booking.status !== 'cancelled' && (
+                          <Button
+                            onClick={() => handlePayBooking(booking)}
+                            size="sm"
+                            className="flex-1 bg-emerald-500 text-white hover:bg-emerald-600 rounded-full"
+                            data-testid={`pay-booking-btn-${booking.id}`}
+                          >
+                            <CreditCard className="w-4 h-4 mr-1" />
+                            Pagar
+                          </Button>
+                        )}
+                        {(booking.status === 'confirmed' || booking.status === 'in_progress') && booking.service_type === 'walker' && (
                           <Button
                             onClick={() => navigate(`/tracking/${booking.id}`)}
                             size="sm"
-                            className="bg-sky-100 text-sky-700 hover:bg-sky-200 rounded-full"
+                            className="flex-1 bg-sky-100 text-sky-700 hover:bg-sky-200 rounded-full"
                             data-testid={`track-booking-btn-${booking.id}`}
                           >
                             <MapPin className="w-4 h-4 mr-1" />
