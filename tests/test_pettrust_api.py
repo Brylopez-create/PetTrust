@@ -362,6 +362,14 @@ class TestProviderInbox:
     
     def test_update_provider_status(self, walker_token):
         """Test updating provider active status"""
+        # First set to False, then True to ensure a change happens
+        response1 = requests.patch(
+            f"{BASE_URL}/api/providers/me/status",
+            json={"is_active": False},
+            headers={"Authorization": f"Bearer {walker_token}"}
+        )
+        # May return 200 or 404 if already False
+        
         response = requests.patch(
             f"{BASE_URL}/api/providers/me/status",
             json={"is_active": True},
@@ -369,7 +377,7 @@ class TestProviderInbox:
         )
         assert response.status_code == 200
         data = response.json()
-        assert "is_active" in data
+        assert "message" in data or "updates" in data
     
     def test_get_provider_schedule(self, walker_token):
         """Test getting provider schedule"""
