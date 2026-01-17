@@ -7,12 +7,11 @@ import Navbar from '../components/Navbar';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Textarea } from '../components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
-import { CalendarDays, MapPin, Clock, Star, PlusCircle, Play, CheckCircle, AlertCircle, Shield } from 'lucide-react';
+import { CalendarDays, MapPin, Clock, PlusCircle, CreditCard, Loader2 } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
@@ -21,11 +20,9 @@ const Dashboard = () => {
   const [pets, setPets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddPet, setShowAddPet] = useState(false);
-  const [showReviewDialog, setShowReviewDialog] = useState(false);
-  const [showIncidentDialog, setShowIncidentDialog] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [reviewData, setReviewData] = useState({ rating: 5, comment: '' });
-  const [incidentData, setIncidentData] = useState({ type: 'other', description: '' });
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const [newPet, setNewPet] = useState({
     name: '',
     breed: '',
@@ -39,8 +36,12 @@ const Dashboard = () => {
       navigate('/admin');
       return;
     }
+    if (user?.role === 'walker' || user?.role === 'daycare') {
+      navigate('/provider-dashboard');
+      return;
+    }
     fetchData();
-  }, [user]);
+  }, [user, navigate]);
 
   const fetchData = async () => {
     setLoading(true);
