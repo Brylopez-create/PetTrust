@@ -76,20 +76,64 @@ const Dashboard = () => {
     }
   };
 
+  const handlePayBooking = async (booking) => {
+    setSelectedBooking(booking);
+    setShowPaymentDialog(true);
+  };
+
+  const processPayment = async () => {
+    if (!selectedBooking) return;
+    
+    setPaymentLoading(true);
+    try {
+      const createResponse = await axios.post(`${API}/payments/wompi/create`, {
+        booking_id: selectedBooking.id,
+        amount: selectedBooking.price,
+        currency: "COP",
+        customer_email: user?.email || "cliente@pettrust.com",
+        payment_method: "CARD"
+      });
+      
+      await axios.post(`${API}/payments/wompi/confirm/${createResponse.data.transaction_id}`);
+      
+      toast.success('¡Pago procesado exitosamente!');
+      setShowPaymentDialog(false);
+      setSelectedBooking(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al procesar el pago');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   const getStatusBadge = (status) => {
     const styles = {
       pending: 'bg-amber-100 text-amber-700',
       confirmed: 'bg-emerald-100 text-emerald-700',
+      in_progress: 'bg-sky-100 text-sky-700',
       completed: 'bg-blue-100 text-blue-700',
       cancelled: 'bg-red-100 text-red-700'
     };
     const labels = {
       pending: 'Pendiente',
       confirmed: 'Confirmado',
+      in_progress: 'En Progreso',
       completed: 'Completado',
       cancelled: 'Cancelado'
     };
-    return <Badge className={`${styles[status]} hover:${styles[status]} rounded-full`}>{labels[status]}</Badge>;
+    return <Badge className={`${styles[status] || styles.pending} hover:${styles[status] || styles.pending} rounded-full`}>{labels[status] || status}</Badge>;
+  };
+
+  const getPaymentBadge = (status) => {
+    if (status === 'paid') {
+      return <Badge className="bg-emerald-100 text-emerald-700 rounded-full">Pagado</Badge>;
+    }
+    return <Badge className="bg-amber-100 text-amber-700 rounded-full">Pendiente de Pago</Badge>;
+  };
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(price);
   };
 
   return (
