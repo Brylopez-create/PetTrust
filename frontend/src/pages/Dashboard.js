@@ -369,6 +369,86 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="rounded-3xl max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-xl">Pagar Reserva</DialogTitle>
+          </DialogHeader>
+          
+          {selectedBooking && (
+            <div className="space-y-6">
+              <div className="bg-stone-50 rounded-2xl p-4 space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-stone-600">Servicio</span>
+                  <span className="font-semibold">{selectedBooking.service_type === 'walker' ? 'Paseo' : 'Guardería'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-600">Fecha</span>
+                  <span className="font-semibold">{new Date(selectedBooking.date).toLocaleDateString('es-CO')}</span>
+                </div>
+                {selectedBooking.pet_name && (
+                  <div className="flex justify-between">
+                    <span className="text-stone-600">Mascota</span>
+                    <span className="font-semibold">{selectedBooking.pet_name}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-3 border-t border-stone-200">
+                  <span className="text-stone-900 font-semibold">Total</span>
+                  <span className="text-2xl font-bold text-emerald-600">
+                    {formatPrice(selectedBooking.price)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-purple-50 rounded-2xl p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <img 
+                    src="https://cdn.worldvectorlogo.com/logos/wompi.svg" 
+                    alt="Wompi" 
+                    className="h-6"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <span className="text-sm font-medium text-purple-700">Pago Seguro con Wompi</span>
+                </div>
+                <p className="text-xs text-purple-600">
+                  Modo Sandbox - Pagos de prueba
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowPaymentDialog(false)}
+                  variant="outline"
+                  className="flex-1 rounded-full"
+                  disabled={paymentLoading}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={processPayment}
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full"
+                  disabled={paymentLoading}
+                  data-testid="confirm-payment-btn"
+                >
+                  {paymentLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Pagar Ahora
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
