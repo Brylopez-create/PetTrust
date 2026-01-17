@@ -864,8 +864,6 @@ async def trigger_sos_alert(booking_id: str, latitude: float, longitude: float, 
     
     emergency_contacts = await db.emergency_contacts.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(100)
     
-    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
-    
     return {
         "message": "Alerta SOS activada",
         "alert_id": sos_alert.id,
