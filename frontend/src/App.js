@@ -7,6 +7,7 @@ import Explore from './pages/Explore';
 import WalkerProfile from './pages/WalkerProfile';
 import DaycareProfile from './pages/DaycareProfile';
 import Dashboard from './pages/Dashboard';
+import ProviderDashboard from './pages/ProviderDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import Booking from './pages/Booking';
 import Tracking from './pages/Tracking';
@@ -76,6 +77,7 @@ function App() {
           <Route path="/guarderias/:id" element={<DaycareProfile />} />
           <Route path="/reservar/:type/:id" element={user ? <Booking /> : <Navigate to="/login" />} />
           <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+          <Route path="/provider-dashboard" element={user ? <ProviderDashboard /> : <Navigate to="/login" />} />
           <Route path="/admin" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />
           <Route path="/tracking/:bookingId" element={user ? <Tracking /> : <Navigate to="/login" />} />
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
