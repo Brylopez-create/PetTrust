@@ -87,7 +87,7 @@ Servicios locales
 4+ (Apto para todas las edades)
 
 ### Sitio Web de Soporte
-https://mascotaconfianza.preview.emergentagent.com
+https://pettrust-bogota.preview.emergentagent.com
 
 ### Email de Soporte
 soporte@pettrust.co

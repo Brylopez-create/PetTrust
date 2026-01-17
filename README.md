@@ -9,7 +9,7 @@
 
 **La primera plataforma en Bogotá que conecta dueños con paseadores certificados**
 
-[Demo en Vivo](https://mascotaconfianza.preview.emergentagent.com) · [Documentación](#-documentación) · [Reportar Bug](https://github.com/Brylopez-create/PetTrust/issues)
+[Demo en Vivo](https://pettrust-bogota.preview.emergentagent.com) · [Documentación](#-documentación) · [Reportar Bug](https://github.com/Brylopez-create/PetTrust/issues)
 
 </div>
 
@@ -29,7 +29,7 @@ PetTrust es un marketplace premium que revoluciona el cuidado de mascotas en Bog
 
 ## 🚀 Demo y Credenciales
 
-**Demo en Vivo:** https://mascotaconfianza.preview.emergentagent.com
+**Demo en Vivo:** https://pettrust-bogota.preview.emergentagent.com
 
 **Credenciales de prueba:**
 - **Admin:** admin@pettrust.co / admin123
@@ -118,7 +118,7 @@ Las contribuciones son bienvenidas! Por favor:
 
 - **Email:** soporte@pettrust.co
 - **WhatsApp:** +57 300 123 4567
-- **Web:** https://mascotaconfianza.preview.emergentagent.com
+- **Web:** https://pettrust-bogota.preview.emergentagent.com
 
 ---
 
