@@ -92,6 +92,14 @@ const Navbar = () => {
         </div>
       </div>
     </nav>
+
+      {/* Safety Center Dialog */}
+      <Dialog open={showSafety} onOpenChange={setShowSafety}>
+        <DialogContent className="rounded-3xl max-w-2xl max-h-[90vh] overflow-y-auto">
+          <SafetyCenter onClose={() => setShowSafety(false)} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
