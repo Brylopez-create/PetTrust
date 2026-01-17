@@ -79,6 +79,20 @@ class User(BaseModel):
     phone: Optional[str] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+class WorkingHours(BaseModel):
+    start: str = "08:00"
+    end: str = "18:00"
+    enabled: bool = True
+
+class WeeklySchedule(BaseModel):
+    monday: WorkingHours = Field(default_factory=WorkingHours)
+    tuesday: WorkingHours = Field(default_factory=WorkingHours)
+    wednesday: WorkingHours = Field(default_factory=WorkingHours)
+    thursday: WorkingHours = Field(default_factory=WorkingHours)
+    friday: WorkingHours = Field(default_factory=WorkingHours)
+    saturday: WorkingHours = Field(default_factory=lambda: WorkingHours(start="09:00", end="14:00"))
+    sunday: WorkingHours = Field(default_factory=lambda: WorkingHours(enabled=False))
+
 class WalkerProfile(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -102,6 +116,8 @@ class WalkerProfile(BaseModel):
     radius_km: float = 5.0
     is_active: bool = False
     coordinates: Optional[Dict[str, float]] = None
+    working_hours: Optional[Dict[str, Any]] = None
+    available_slots: List[str] = Field(default_factory=lambda: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"])
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class WalkerCreate(BaseModel):
@@ -129,6 +145,15 @@ class DaycareProfile(BaseModel):
     reviews_count: int = 0
     price_per_day: float = 80000
     verification_status: str = "pending"
+    capacity_total: int = 20
+    capacity_available: int = 20
+    pickup_service: bool = False
+    pickup_price: float = 15000
+    pickup_radius_km: float = 10.0
+    coordinates: Optional[Dict[str, float]] = None
+    is_active: bool = True
+    opening_hours: str = "07:00"
+    closing_hours: str = "19:00"
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class DaycareCreate(BaseModel):
@@ -178,6 +203,13 @@ class Booking(BaseModel):
     payment_id: Optional[str] = None
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
+    requires_pickup: bool = False
+    pickup_address: Optional[str] = None
+    pickup_coordinates: Optional[Dict[str, float]] = None
+    pickup_time: Optional[str] = None
+    checkin_at: Optional[str] = None
+    checkin_location: Optional[Dict[str, float]] = None
+    wompi_transaction_id: Optional[str] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class BookingCreate(BaseModel):
@@ -187,6 +219,9 @@ class BookingCreate(BaseModel):
     date: str
     time: Optional[str] = None
     price: float
+    requires_pickup: bool = False
+    pickup_address: Optional[str] = None
+    pickup_coordinates: Optional[Dict[str, float]] = None
 
 class Review(BaseModel):
     model_config = ConfigDict(extra="ignore")
