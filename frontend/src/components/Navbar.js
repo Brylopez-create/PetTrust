@@ -1,8 +1,10 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../App';
 import { Button } from './ui/button';
-import { User, LogOut, LayoutDashboard } from 'lucide-react';
+import { Dialog, DialogContent } from './ui/dialog';
+import { User, LogOut, LayoutDashboard, Shield } from 'lucide-react';
+import SafetyCenter from './SafetyCenter';
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
