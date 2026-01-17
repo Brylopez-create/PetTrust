@@ -243,6 +243,59 @@ class IncidentCreate(BaseModel):
     type: str
     description: str
 
+class EmergencyContact(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    name: str
+    phone: str
+    relationship: str
+    is_primary: bool = False
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class EmergencyContactCreate(BaseModel):
+    name: str
+    phone: str
+    relationship: str
+    is_primary: bool = False
+
+class ShareTripLink(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: str
+    share_code: str
+    expires_at: str
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class VerificationPin(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: str
+    pin_code: str
+    verified: bool = False
+    verified_at: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class SOSAlert(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: str
+    user_id: str
+    latitude: float
+    longitude: float
+    alert_type: str = "sos"
+    status: str = "active"
+    resolved_at: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class SafetyCheckIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: str
+    check_in_time: str
+    status: str = "on_time"
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
 @api_router.get("/")
 async def root():
     return {"message": "PetTrust Bogotá API v1.0"}
