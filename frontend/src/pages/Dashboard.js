@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
-import { CalendarDays, MapPin, Clock, Star, PlusCircle, Play, CheckCircle, AlertCircle } from 'lucide-react';
+import { CalendarDays, MapPin, Clock, Star, PlusCircle, Play, CheckCircle, AlertCircle, Shield } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
