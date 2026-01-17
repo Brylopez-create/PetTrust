@@ -401,31 +401,52 @@ class TestWompiPayments:
     
     def test_create_wompi_transaction(self, owner_token):
         """Test creating a Wompi payment transaction (MOCKED)"""
-        # Get bookings first
-        bookings_response = requests.get(
-            f"{BASE_URL}/api/bookings",
+        # First create a new booking to test payment
+        pets_response = requests.get(
+            f"{BASE_URL}/api/pets",
             headers={"Authorization": f"Bearer {owner_token}"}
         )
-        bookings = bookings_response.json()
+        pets = pets_response.json()
         
-        if bookings:
-            payment_data = {
-                "booking_id": bookings[0]["id"],
-                "amount": 25000,
-                "currency": "COP",
-                "customer_email": TEST_OWNER["email"],
-                "payment_method": "CARD"
+        walkers_response = requests.get(f"{BASE_URL}/api/walkers")
+        walkers = walkers_response.json()
+        
+        if pets and walkers:
+            # Create a new booking
+            booking_data = {
+                "pet_id": pets[0]["id"],
+                "service_type": "walker",
+                "service_id": walkers[0]["id"],
+                "date": "2026-01-25",
+                "time": "14:00",
+                "price": walkers[0]["price_per_walk"]
             }
-            response = requests.post(
-                f"{BASE_URL}/api/payments/wompi/create",
-                json=payment_data,
+            booking_response = requests.post(
+                f"{BASE_URL}/api/bookings",
+                json=booking_data,
                 headers={"Authorization": f"Bearer {owner_token}"}
             )
-            assert response.status_code == 200
-            data = response.json()
-            assert "id" in data
-            assert "wompi_id" in data
-            assert data["status"] == "PENDING"
+            
+            if booking_response.status_code == 200:
+                new_booking = booking_response.json()
+                
+                payment_data = {
+                    "booking_id": new_booking["id"],
+                    "amount": 25000,
+                    "currency": "COP",
+                    "customer_email": TEST_OWNER["email"],
+                    "payment_method": "CARD"
+                }
+                response = requests.post(
+                    f"{BASE_URL}/api/payments/wompi/create",
+                    json=payment_data,
+                    headers={"Authorization": f"Bearer {owner_token}"}
+                )
+                assert response.status_code == 200
+                data = response.json()
+                assert "id" in data
+                assert "wompi_id" in data
+                assert data["status"] == "PENDING"
     
     def test_confirm_wompi_transaction(self, owner_token):
         """Test confirming a Wompi payment (MOCKED)"""
