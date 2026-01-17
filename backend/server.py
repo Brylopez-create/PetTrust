@@ -625,6 +625,183 @@ async def get_incidents(booking_id: str):
     incidents = await db.incidents.find({"booking_id": booking_id}, {"_id": 0}).to_list(100)
     return incidents
 
+# ============= SAFETY & SECURITY ENDPOINTS =============
+
+@api_router.post("/emergency-contacts")
+async def add_emergency_contact(contact_data: EmergencyContactCreate, current_user: dict = Depends(get_current_user)):
+    contact = EmergencyContact(
+        user_id=current_user["id"],
+        **contact_data.model_dump()
+    )
+    await db.emergency_contacts.insert_one(contact.model_dump())
+    return contact
+
+@api_router.get("/emergency-contacts")
+async def get_emergency_contacts(current_user: dict = Depends(get_current_user)):
+    contacts = await db.emergency_contacts.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(100)
+    return contacts
+
+@api_router.delete("/emergency-contacts/{contact_id}")
+async def delete_emergency_contact(contact_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.emergency_contacts.delete_one({"id": contact_id, "user_id": current_user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Contacto no encontrado")
+    return {"message": "Contacto eliminado"}
+
+@api_router.post("/bookings/{booking_id}/share-trip")
+async def create_share_trip_link(booking_id: str, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"id": booking_id, "owner_id": current_user["id"]}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    share_code = secrets.token_urlsafe(16)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=12)).isoformat()
+    
+    share_link = ShareTripLink(
+        booking_id=booking_id,
+        share_code=share_code,
+        expires_at=expires_at
+    )
+    await db.share_trip_links.insert_one(share_link.model_dump())
+    
+    return {
+        "share_code": share_code,
+        "share_url": f"https://pettrust.co/track/{share_code}",
+        "expires_at": expires_at
+    }
+
+@api_router.get("/track/{share_code}")
+async def get_shared_trip(share_code: str):
+    link = await db.share_trip_links.find_one({"share_code": share_code}, {"_id": 0})
+    if not link:
+        raise HTTPException(status_code=404, detail="Link inválido o expirado")
+    
+    expires = datetime.fromisoformat(link["expires_at"])
+    if datetime.now(timezone.utc) > expires:
+        raise HTTPException(status_code=410, detail="Link expirado")
+    
+    booking = await db.bookings.find_one({"id": link["booking_id"]}, {"_id": 0})
+    tracking = await db.tracking.find({"booking_id": link["booking_id"]}, {"_id": 0}).sort("timestamp", -1).to_list(100)
+    
+    return {
+        "booking": booking,
+        "tracking": tracking,
+        "status": booking.get("status", "unknown")
+    }
+
+@api_router.post("/bookings/{booking_id}/generate-pin")
+async def generate_verification_pin(booking_id: str, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    if booking["owner_id"] != current_user["id"] and booking.get("service_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    existing_pin = await db.verification_pins.find_one({"booking_id": booking_id, "verified": False}, {"_id": 0})
+    if existing_pin:
+        return {"pin_code": existing_pin["pin_code"], "message": "PIN ya generado"}
+    
+    pin_code = str(random.randint(1000, 9999))
+    
+    pin = VerificationPin(
+        booking_id=booking_id,
+        pin_code=pin_code
+    )
+    await db.verification_pins.insert_one(pin.model_dump())
+    
+    return {"pin_code": pin_code, "message": "PIN generado. Compártelo con el paseador/dueño."}
+
+@api_router.post("/bookings/{booking_id}/verify-pin")
+async def verify_pin(booking_id: str, pin_code: str, current_user: dict = Depends(get_current_user)):
+    pin = await db.verification_pins.find_one({"booking_id": booking_id, "pin_code": pin_code, "verified": False}, {"_id": 0})
+    if not pin:
+        raise HTTPException(status_code=400, detail="PIN inválido o ya verificado")
+    
+    await db.verification_pins.update_one(
+        {"id": pin["id"]},
+        {"$set": {"verified": True, "verified_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"message": "PIN verificado exitosamente", "verified": True}
+
+@api_router.post("/sos")
+async def trigger_sos_alert(booking_id: str, latitude: float, longitude: float, current_user: dict = Depends(get_current_user)):
+    sos_alert = SOSAlert(
+        booking_id=booking_id,
+        user_id=current_user["id"],
+        latitude=latitude,
+        longitude=longitude
+    )
+    await db.sos_alerts.insert_one(sos_alert.model_dump())
+    
+    emergency_contacts = await db.emergency_contacts.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(100)
+    
+    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    
+    return {
+        "message": "Alerta SOS activada",
+        "alert_id": sos_alert.id,
+        "emergency_contacts_notified": len(emergency_contacts),
+        "location": {"lat": latitude, "lng": longitude},
+        "emergency_number": "+57 123 (Policía Nacional Colombia)"
+    }
+
+@api_router.get("/sos/{alert_id}")
+async def get_sos_alert(alert_id: str):
+    alert = await db.sos_alerts.find_one({"id": alert_id}, {"_id": 0})
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerta no encontrada")
+    return alert
+
+@api_router.patch("/sos/{alert_id}/resolve")
+async def resolve_sos_alert(alert_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["admin", "owner"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    await db.sos_alerts.update_one(
+        {"id": alert_id},
+        {"$set": {"status": "resolved", "resolved_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"message": "Alerta resuelta"}
+
+@api_router.post("/bookings/{booking_id}/check-in")
+async def safety_check_in(booking_id: str, current_user: dict = Depends(get_current_user)):
+    check_in = SafetyCheckIn(
+        booking_id=booking_id,
+        check_in_time=datetime.now(timezone.utc).isoformat()
+    )
+    await db.safety_checkins.insert_one(check_in.model_dump())
+    
+    return {"message": "Check-in registrado", "time": check_in.check_in_time}
+
+@api_router.get("/bookings/{booking_id}/safety-status")
+async def get_safety_status(booking_id: str, current_user: dict = Depends(get_current_user)):
+    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    pin_verified = await db.verification_pins.find_one({"booking_id": booking_id, "verified": True}, {"_id": 0})
+    sos_alerts = await db.sos_alerts.find({"booking_id": booking_id, "status": "active"}, {"_id": 0}).to_list(100)
+    check_ins = await db.safety_checkins.find({"booking_id": booking_id}, {"_id": 0}).to_list(100)
+    
+    has_overdue = False
+    if booking.get("status") == "in_progress" and booking.get("started_at"):
+        started = datetime.fromisoformat(booking["started_at"])
+        elapsed = (datetime.now(timezone.utc) - started).total_seconds() / 60
+        if elapsed > 90:
+            has_overdue = True
+    
+    return {
+        "booking_id": booking_id,
+        "status": booking.get("status"),
+        "pin_verified": pin_verified is not None,
+        "active_sos_alerts": len(sos_alerts),
+        "check_ins_count": len(check_ins),
+        "has_overdue_time": has_overdue,
+        "safety_score": "high" if not sos_alerts and not has_overdue else "medium" if not sos_alerts else "critical"
+    }
+
 @api_router.get("/admin/pending-verifications")
 async def get_pending_verifications(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
