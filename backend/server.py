@@ -338,6 +338,87 @@ class SafetyCheckIn(BaseModel):
     status: str = "on_time"
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+# ============= REVIEWS MODELS =============
+
+class Review(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: str
+    owner_id: str
+    owner_name: str
+    service_type: str
+    service_id: str
+    rating: int  # 1-5
+    comment: str
+    provider_response: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class ReviewCreate(BaseModel):
+    booking_id: str
+    rating: int
+    comment: str
+
+# ============= WELLNESS REPORTS MODELS =============
+
+class WellnessReport(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: str
+    walker_id: str
+    walker_name: str
+    pet_id: str
+    pet_name: str
+    mood: str  # happy, calm, tired, anxious
+    ate: bool = False
+    drank_water: bool = False
+    bathroom: bool = False
+    notes: str = ""
+    photos: List[str] = []  # base64 encoded images
+    location: Optional[Dict[str, float]] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class WellnessReportCreate(BaseModel):
+    booking_id: str
+    mood: str
+    ate: bool = False
+    drank_water: bool = False
+    bathroom: bool = False
+    notes: str = ""
+    photos: List[str] = []  # base64 strings
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+# ============= PHOTO UPLOAD MODELS =============
+
+class PhotoUpload(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    entity_type: str  # walker, daycare, pet
+    entity_id: str
+    photo_type: str  # profile, gallery, certification
+    data: str  # base64 encoded
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class PhotoUploadRequest(BaseModel):
+    entity_type: str
+    entity_id: str
+    photo_type: str
+    data: str  # base64
+
+# ============= NOTIFICATION MODELS =============
+
+class Notification(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    type: str  # new_request, booking_confirmed, message, review, wellness_report
+    title: str
+    message: str
+    data: Dict[str, Any] = {}
+    read: bool = False
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
 # ============= SERVICE REQUESTS & INBOX MODELS =============
 
 class ServiceRequest(BaseModel):
