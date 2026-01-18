@@ -74,6 +74,25 @@ Plataforma web premium para el mercado de Bogotá que conecta dueños de mascota
 - [x] Obtener historial de tracking
 - [x] Página de tracking en vivo (simulado)
 
+### Chat en Tiempo Real ✅ NEW
+- [x] Conversaciones entre owner y provider
+- [x] Envío/recepción de mensajes
+- [x] Conteo de mensajes no leídos
+- [x] Iniciar chat desde perfil del proveedor
+- [x] Polling para nuevos mensajes (cada 5 seg)
+
+### UI Móvil Mejorada ✅ NEW
+- [x] Menú hamburguesa completo
+- [x] Información del usuario logueado
+- [x] Botón "Cerrar Sesión" visible
+- [x] Botón "Mensajes" con badge de no leídos
+- [x] Diseño responsive para todas las páginas
+
+## Mobile App Documentation
+Ver archivos:
+- `/app/API_DOCUMENTATION_MOBILE.md` - Documentación completa de API para app nativa
+- `/app/VIBECODE_QUICK_REFERENCE.md` - Referencia rápida para Vibecode
+
 ## API Endpoints
 
 ### Authentication
