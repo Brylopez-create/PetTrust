@@ -1970,6 +1970,325 @@ async def get_unread_count(current_user: dict = Depends(get_current_user)):
     result = await db.conversations.aggregate(pipeline).to_list(1)
     return {"unread_count": result[0]["total"] if result else 0}
 
+# ============= REVIEWS ENDPOINTS =============
+
+@api_router.post("/reviews")
+async def create_review(
+    review_data: ReviewCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a review for a completed booking"""
+    if current_user["role"] != "owner":
+        raise HTTPException(status_code=403, detail="Solo dueños pueden dejar reseñas")
+    
+    booking = await db.bookings.find_one({
+        "id": review_data.booking_id,
+        "owner_id": current_user["id"]
+    }, {"_id": 0})
+    
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    if booking.get("status") != "completed":
+        raise HTTPException(status_code=400, detail="Solo puedes reseñar servicios completados")
+    
+    existing_review = await db.reviews.find_one({"booking_id": review_data.booking_id}, {"_id": 0})
+    if existing_review:
+        raise HTTPException(status_code=400, detail="Ya existe una reseña para esta reserva")
+    
+    if not 1 <= review_data.rating <= 5:
+        raise HTTPException(status_code=400, detail="Rating debe ser entre 1 y 5")
+    
+    review = Review(
+        booking_id=review_data.booking_id,
+        owner_id=current_user["id"],
+        owner_name=current_user["name"],
+        service_type=booking["service_type"],
+        service_id=booking["service_id"],
+        rating=review_data.rating,
+        comment=review_data.comment
+    )
+    
+    await db.reviews.insert_one(review.model_dump())
+    
+    collection = "walkers" if booking["service_type"] == "walker" else "daycares"
+    
+    all_reviews = await db.reviews.find({"service_id": booking["service_id"]}, {"_id": 0}).to_list(1000)
+    avg_rating = sum(r["rating"] for r in all_reviews) / len(all_reviews)
+    
+    await db[collection].update_one(
+        {"id": booking["service_id"]},
+        {"$set": {"rating": round(avg_rating, 1), "reviews_count": len(all_reviews)}}
+    )
+    
+    notification = Notification(
+        user_id=booking["service_id"],
+        type="review",
+        title="Nueva Reseña",
+        message=f"{current_user['name']} te dejó una reseña de {review_data.rating} estrellas",
+        data={"review_id": review.id, "rating": review_data.rating}
+    )
+    await db.notifications.insert_one(notification.model_dump())
+    
+    return review.model_dump()
+
+@api_router.get("/reviews/{service_type}/{service_id}")
+async def get_reviews(service_type: str, service_id: str):
+    """Get all reviews for a service provider"""
+    reviews = await db.reviews.find({
+        "service_type": service_type,
+        "service_id": service_id
+    }, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return reviews
+
+@api_router.get("/reviews/booking/{booking_id}")
+async def get_booking_review(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Check if a booking has been reviewed"""
+    review = await db.reviews.find_one({"booking_id": booking_id}, {"_id": 0})
+    return {"has_review": review is not None, "review": review}
+
+# ============= WELLNESS REPORTS ENDPOINTS =============
+
+@api_router.post("/wellness-reports")
+async def create_wellness_report(
+    report_data: WellnessReportCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a wellness report during a walk"""
+    if current_user["role"] != "walker":
+        raise HTTPException(status_code=403, detail="Solo paseadores pueden crear reportes")
+    
+    profile = await db.walkers.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    if not profile:
+        raise HTTPException(status_code=404, detail="Perfil de paseador no encontrado")
+    
+    booking = await db.bookings.find_one({
+        "id": report_data.booking_id,
+        "service_id": profile["id"],
+        "status": "in_progress"
+    }, {"_id": 0})
+    
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva activa no encontrada")
+    
+    pet = await db.pets.find_one({"id": booking["pet_id"]}, {"_id": 0})
+    
+    report = WellnessReport(
+        booking_id=report_data.booking_id,
+        walker_id=profile["id"],
+        walker_name=profile["name"],
+        pet_id=booking["pet_id"],
+        pet_name=pet.get("name", "") if pet else "",
+        mood=report_data.mood,
+        ate=report_data.ate,
+        drank_water=report_data.drank_water,
+        bathroom=report_data.bathroom,
+        notes=report_data.notes,
+        photos=report_data.photos[:5],
+        location={"lat": report_data.latitude, "lng": report_data.longitude} if report_data.latitude else None
+    )
+    
+    await db.wellness_reports.insert_one(report.model_dump())
+    
+    mood_emojis = {"happy": "😊", "calm": "😌", "tired": "😴", "anxious": "😰"}
+    mood_text = mood_emojis.get(report_data.mood, "🐕")
+    
+    notification = Notification(
+        user_id=booking["owner_id"],
+        type="wellness_report",
+        title=f"Reporte de {pet.get('name', 'tu mascota') if pet else 'tu mascota'}",
+        message=f"{mood_text} {pet.get('name', 'Tu mascota') if pet else 'Tu mascota'} está {report_data.mood}. {report_data.notes[:50]}{'...' if len(report_data.notes) > 50 else ''}",
+        data={"report_id": report.id, "booking_id": report_data.booking_id, "has_photos": len(report_data.photos) > 0}
+    )
+    await db.notifications.insert_one(notification.model_dump())
+    
+    return report.model_dump()
+
+@api_router.get("/wellness-reports/booking/{booking_id}")
+async def get_wellness_reports(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all wellness reports for a booking"""
+    reports = await db.wellness_reports.find({"booking_id": booking_id}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return reports
+
+@api_router.get("/wellness-reports/{report_id}")
+async def get_wellness_report(report_id: str, current_user: dict = Depends(get_current_user)):
+    """Get a specific wellness report"""
+    report = await db.wellness_reports.find_one({"id": report_id}, {"_id": 0})
+    if not report:
+        raise HTTPException(status_code=404, detail="Reporte no encontrado")
+    return report
+
+# ============= PHOTO UPLOAD ENDPOINTS =============
+
+@api_router.post("/photos/upload")
+async def upload_photo(
+    photo_data: PhotoUploadRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload a photo for profile or gallery"""
+    if photo_data.entity_type == "walker":
+        profile = await db.walkers.find_one({
+            "id": photo_data.entity_id,
+            "user_id": current_user["id"]
+        }, {"_id": 0})
+        if not profile:
+            raise HTTPException(status_code=403, detail="No autorizado")
+    elif photo_data.entity_type == "daycare":
+        profile = await db.daycares.find_one({
+            "id": photo_data.entity_id,
+            "user_id": current_user["id"]
+        }, {"_id": 0})
+        if not profile:
+            raise HTTPException(status_code=403, detail="No autorizado")
+    elif photo_data.entity_type == "pet":
+        pet = await db.pets.find_one({
+            "id": photo_data.entity_id,
+            "owner_id": current_user["id"]
+        }, {"_id": 0})
+        if not pet:
+            raise HTTPException(status_code=403, detail="No autorizado")
+    else:
+        raise HTTPException(status_code=400, detail="Tipo de entidad inválido")
+    
+    if len(photo_data.data) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Imagen muy grande (máx 5MB)")
+    
+    photo = PhotoUpload(
+        user_id=current_user["id"],
+        entity_type=photo_data.entity_type,
+        entity_id=photo_data.entity_id,
+        photo_type=photo_data.photo_type,
+        data=photo_data.data
+    )
+    
+    await db.photos.insert_one(photo.model_dump())
+    
+    collection = photo_data.entity_type + "s" if photo_data.entity_type != "daycare" else "daycares"
+    if photo_data.entity_type == "pet":
+        collection = "pets"
+    
+    if photo_data.photo_type == "profile":
+        await db[collection].update_one(
+            {"id": photo_data.entity_id},
+            {"$set": {"profile_image": f"data:image/jpeg;base64,{photo_data.data[:100]}...", "profile_photo_id": photo.id}}
+        )
+    elif photo_data.photo_type == "gallery":
+        await db[collection].update_one(
+            {"id": photo_data.entity_id},
+            {"$push": {"gallery_images": photo.id}}
+        )
+    
+    return {"photo_id": photo.id, "message": "Foto subida exitosamente"}
+
+@api_router.get("/photos/{photo_id}")
+async def get_photo(photo_id: str):
+    """Get a photo by ID"""
+    photo = await db.photos.find_one({"id": photo_id}, {"_id": 0})
+    if not photo:
+        raise HTTPException(status_code=404, detail="Foto no encontrada")
+    return {"id": photo["id"], "data": photo["data"], "photo_type": photo["photo_type"]}
+
+@api_router.get("/photos/gallery/{entity_type}/{entity_id}")
+async def get_gallery(entity_type: str, entity_id: str):
+    """Get all gallery photos for an entity"""
+    photos = await db.photos.find({
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "photo_type": "gallery"
+    }, {"_id": 0}).to_list(20)
+    return photos
+
+@api_router.delete("/photos/{photo_id}")
+async def delete_photo(photo_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a photo"""
+    photo = await db.photos.find_one({"id": photo_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not photo:
+        raise HTTPException(status_code=404, detail="Foto no encontrada")
+    
+    await db.photos.delete_one({"id": photo_id})
+    
+    collection = photo["entity_type"] + "s" if photo["entity_type"] != "daycare" else "daycares"
+    if photo["entity_type"] == "pet":
+        collection = "pets"
+    
+    if photo["photo_type"] == "gallery":
+        await db[collection].update_one(
+            {"id": photo["entity_id"]},
+            {"$pull": {"gallery_images": photo_id}}
+        )
+    
+    return {"message": "Foto eliminada"}
+
+# ============= NOTIFICATIONS ENDPOINTS =============
+
+@api_router.get("/notifications")
+async def get_notifications(current_user: dict = Depends(get_current_user)):
+    """Get user notifications"""
+    user_id = current_user["id"]
+    
+    if current_user["role"] in ["walker", "daycare"]:
+        collection = "walkers" if current_user["role"] == "walker" else "daycares"
+        profile = await db[collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if profile:
+            notifications = await db.notifications.find({
+                "$or": [{"user_id": user_id}, {"user_id": profile["id"]}]
+            }, {"_id": 0}).sort("created_at", -1).to_list(50)
+        else:
+            notifications = await db.notifications.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    else:
+        notifications = await db.notifications.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    
+    return notifications
+
+@api_router.get("/notifications/unread/count")
+async def get_notification_count(current_user: dict = Depends(get_current_user)):
+    """Get unread notifications count"""
+    user_id = current_user["id"]
+    
+    if current_user["role"] in ["walker", "daycare"]:
+        collection = "walkers" if current_user["role"] == "walker" else "daycares"
+        profile = await db[collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if profile:
+            count = await db.notifications.count_documents({
+                "$or": [{"user_id": user_id}, {"user_id": profile["id"]}],
+                "read": False
+            })
+        else:
+            count = await db.notifications.count_documents({"user_id": user_id, "read": False})
+    else:
+        count = await db.notifications.count_documents({"user_id": user_id, "read": False})
+    
+    return {"unread_count": count}
+
+@api_router.post("/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, current_user: dict = Depends(get_current_user)):
+    """Mark a notification as read"""
+    await db.notifications.update_one(
+        {"id": notification_id},
+        {"$set": {"read": True}}
+    )
+    return {"message": "Notificación marcada como leída"}
+
+@api_router.post("/notifications/read-all")
+async def mark_all_notifications_read(current_user: dict = Depends(get_current_user)):
+    """Mark all notifications as read"""
+    user_id = current_user["id"]
+    
+    if current_user["role"] in ["walker", "daycare"]:
+        collection = "walkers" if current_user["role"] == "walker" else "daycares"
+        profile = await db[collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if profile:
+            await db.notifications.update_many(
+                {"$or": [{"user_id": user_id}, {"user_id": profile["id"]}]},
+                {"$set": {"read": True}}
+            )
+        else:
+            await db.notifications.update_many({"user_id": user_id}, {"$set": {"read": True}})
+    else:
+        await db.notifications.update_many({"user_id": user_id}, {"$set": {"read": True}})
+    
+    return {"message": "Todas las notificaciones marcadas como leídas"}
+
 app.include_router(api_router)
 
 app.add_middleware(
