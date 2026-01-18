@@ -1,17 +1,39 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../App';
+import axios from 'axios';
+import { AuthContext, API } from '../App';
 import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from './ui/sheet';
-import { User, LogOut, LayoutDashboard, Shield, Menu, X, Search, Home } from 'lucide-react';
+import { Badge } from './ui/badge';
+import { User, LogOut, LayoutDashboard, Shield, Menu, X, Search, Home, MessageCircle } from 'lucide-react';
 import SafetyCenter from './SafetyCenter';
+import ChatCenter from './ChatCenter';
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [showSafety, setShowSafety] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await axios.get(`${API}/conversations/unread/count`);
+      setUnreadCount(response.data.unread_count);
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
 
   const handleLogout = () => {
     logout();
