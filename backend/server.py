@@ -423,6 +423,42 @@ class WompiTransaction(BaseModel):
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     finalized_at: Optional[str] = None
 
+# ============= CHAT MODELS =============
+
+class ChatMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    conversation_id: str
+    sender_id: str
+    sender_name: str
+    sender_role: str
+    content: str
+    read: bool = False
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class ChatConversation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: Optional[str] = None
+    owner_id: str
+    owner_name: str
+    provider_id: str
+    provider_name: str
+    provider_type: str
+    last_message: Optional[str] = None
+    last_message_at: Optional[str] = None
+    owner_unread: int = 0
+    provider_unread: int = 0
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class SendMessageRequest(BaseModel):
+    content: str
+
+class StartConversationRequest(BaseModel):
+    provider_id: str
+    provider_type: str
+    booking_id: Optional[str] = None
+
 @api_router.get("/")
 async def root():
     return {"message": "PetTrust Bogotá API v1.0"}
