@@ -224,10 +224,20 @@ const WalkerProfile = () => {
 
                 <Button
                   onClick={handleBooking}
-                  className="w-full h-14 bg-emerald-400 text-white hover:bg-emerald-500 rounded-full text-lg font-semibold shadow-lg shadow-emerald-100 mb-4"
+                  className="w-full h-14 bg-emerald-400 text-white hover:bg-emerald-500 rounded-full text-lg font-semibold shadow-lg shadow-emerald-100 mb-3"
                   data-testid="book-walker-btn"
                 >
                   Reservar Paseo
+                </Button>
+
+                <Button
+                  onClick={handleStartChat}
+                  variant="outline"
+                  className="w-full h-12 rounded-full border-stone-200 hover:bg-stone-50 mb-4"
+                  data-testid="chat-walker-btn"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Enviar Mensaje
                 </Button>
 
                 <div className="space-y-3 pt-6 border-t border-stone-200">
@@ -253,6 +263,9 @@ const WalkerProfile = () => {
           </div>
         </div>
       </div>
+
+      {/* Chat Center */}
+      <ChatCenter isOpen={showChat} onClose={() => setShowChat(false)} />
     </div>
   );
 };
