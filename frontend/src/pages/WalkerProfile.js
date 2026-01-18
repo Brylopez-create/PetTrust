@@ -2,12 +2,14 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API, AuthContext } from '../App';
+import { toast } from 'sonner';
 import Navbar from '../components/Navbar';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
-import { Star, MapPin, Shield, CheckCircle2, Award, Clock, Heart } from 'lucide-react';
+import { Star, MapPin, Shield, CheckCircle2, Award, Clock, Heart, MessageCircle } from 'lucide-react';
+import ChatCenter from '../components/ChatCenter';
 
 const WalkerProfile = () => {
   const { id } = useParams();
@@ -16,6 +18,7 @@ const WalkerProfile = () => {
   const [walker, setWalker] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     fetchWalker();
@@ -39,6 +42,22 @@ const WalkerProfile = () => {
       setReviews(response.data);
     } catch (error) {
       console.error('Error fetching reviews:', error);
+    }
+  };
+
+  const handleStartChat = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    try {
+      await axios.post(`${API}/conversations`, {
+        provider_id: id,
+        provider_type: 'walker'
+      });
+      setShowChat(true);
+    } catch (error) {
+      toast.error('Error al iniciar conversación');
     }
   };
 
