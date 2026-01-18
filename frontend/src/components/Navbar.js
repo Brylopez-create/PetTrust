@@ -268,6 +268,15 @@ const Navbar = () => {
           <SafetyCenter onClose={() => setShowSafety(false)} />
         </DialogContent>
       </Dialog>
+
+      {/* Chat Center */}
+      <ChatCenter 
+        isOpen={showChat} 
+        onClose={() => {
+          setShowChat(false);
+          fetchUnreadCount();
+        }} 
+      />
     </>
   );
 };
