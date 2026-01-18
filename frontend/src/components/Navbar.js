@@ -202,6 +202,22 @@ const Navbar = () => {
                           <span className="font-medium text-emerald-600">Centro de Seguridad</span>
                         </button>
 
+                        <button
+                          onClick={() => {
+                            closeMobileMenu();
+                            setShowChat(true);
+                          }}
+                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-stone-100 transition-colors w-full text-left relative"
+                        >
+                          <MessageCircle className="w-5 h-5 text-stone-600" />
+                          <span className="font-medium text-stone-700">Mensajes</span>
+                          {unreadCount > 0 && (
+                            <Badge className="bg-red-500 text-white rounded-full h-5 min-w-5 px-1.5 text-xs ml-auto">
+                              {unreadCount}
+                            </Badge>
+                          )}
+                        </button>
+
                         <div className="pt-4 border-t border-stone-200 mt-4">
                           <button
                             onClick={handleLogout}
