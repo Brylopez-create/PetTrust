@@ -1715,6 +1715,180 @@ async def seed_demo_data():
         "daycares_created": len(demo_daycares)
     }
 
+# ============= CHAT ENDPOINTS =============
+
+@api_router.get("/conversations")
+async def get_conversations(current_user: dict = Depends(get_current_user)):
+    """Get all conversations for current user"""
+    if current_user["role"] == "owner":
+        query = {"owner_id": current_user["id"]}
+    else:
+        collection = "walkers" if current_user["role"] == "walker" else "daycares"
+        profile = await db[collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if not profile:
+            return []
+        query = {"provider_id": profile["id"]}
+    
+    conversations = await db.conversations.find(query, {"_id": 0}).sort("last_message_at", -1).to_list(50)
+    return conversations
+
+@api_router.post("/conversations")
+async def start_conversation(
+    request: StartConversationRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Start a new conversation with a provider"""
+    if current_user["role"] != "owner":
+        raise HTTPException(status_code=403, detail="Solo dueños pueden iniciar conversaciones")
+    
+    collection = "walkers" if request.provider_type == "walker" else "daycares"
+    provider = await db[collection].find_one({"id": request.provider_id}, {"_id": 0})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    existing = await db.conversations.find_one({
+        "owner_id": current_user["id"],
+        "provider_id": request.provider_id
+    }, {"_id": 0})
+    
+    if existing:
+        return existing
+    
+    conversation = ChatConversation(
+        booking_id=request.booking_id,
+        owner_id=current_user["id"],
+        owner_name=current_user["name"],
+        provider_id=request.provider_id,
+        provider_name=provider.get("name", ""),
+        provider_type=request.provider_type
+    )
+    
+    await db.conversations.insert_one(conversation.model_dump())
+    return conversation.model_dump()
+
+@api_router.get("/conversations/{conversation_id}")
+async def get_conversation(
+    conversation_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get a specific conversation with messages"""
+    conversation = await db.conversations.find_one({"id": conversation_id}, {"_id": 0})
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversación no encontrada")
+    
+    is_owner = conversation["owner_id"] == current_user["id"]
+    is_provider = False
+    if current_user["role"] in ["walker", "daycare"]:
+        collection = "walkers" if current_user["role"] == "walker" else "daycares"
+        profile = await db[collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if profile and profile["id"] == conversation["provider_id"]:
+            is_provider = True
+    
+    if not is_owner and not is_provider:
+        raise HTTPException(status_code=403, detail="Sin acceso a esta conversación")
+    
+    messages = await db.chat_messages.find(
+        {"conversation_id": conversation_id}, {"_id": 0}
+    ).sort("created_at", 1).to_list(200)
+    
+    if is_owner:
+        await db.conversations.update_one(
+            {"id": conversation_id},
+            {"$set": {"owner_unread": 0}}
+        )
+        await db.chat_messages.update_many(
+            {"conversation_id": conversation_id, "sender_role": {"$ne": "owner"}, "read": False},
+            {"$set": {"read": True}}
+        )
+    else:
+        await db.conversations.update_one(
+            {"id": conversation_id},
+            {"$set": {"provider_unread": 0}}
+        )
+        await db.chat_messages.update_many(
+            {"conversation_id": conversation_id, "sender_role": "owner", "read": False},
+            {"$set": {"read": True}}
+        )
+    
+    return {
+        "conversation": conversation,
+        "messages": messages
+    }
+
+@api_router.post("/conversations/{conversation_id}/messages")
+async def send_message(
+    conversation_id: str,
+    request: SendMessageRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Send a message in a conversation"""
+    conversation = await db.conversations.find_one({"id": conversation_id}, {"_id": 0})
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversación no encontrada")
+    
+    is_owner = conversation["owner_id"] == current_user["id"]
+    is_provider = False
+    sender_id = current_user["id"]
+    
+    if current_user["role"] in ["walker", "daycare"]:
+        collection = "walkers" if current_user["role"] == "walker" else "daycares"
+        profile = await db[collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if profile and profile["id"] == conversation["provider_id"]:
+            is_provider = True
+            sender_id = profile["id"]
+    
+    if not is_owner and not is_provider:
+        raise HTTPException(status_code=403, detail="Sin acceso a esta conversación")
+    
+    message = ChatMessage(
+        conversation_id=conversation_id,
+        sender_id=sender_id,
+        sender_name=current_user["name"],
+        sender_role=current_user["role"],
+        content=request.content
+    )
+    
+    await db.chat_messages.insert_one(message.model_dump())
+    
+    update_data = {
+        "last_message": request.content[:100],
+        "last_message_at": message.created_at
+    }
+    
+    if is_owner:
+        await db.conversations.update_one(
+            {"id": conversation_id},
+            {"$set": update_data, "$inc": {"provider_unread": 1}}
+        )
+    else:
+        await db.conversations.update_one(
+            {"id": conversation_id},
+            {"$set": update_data, "$inc": {"owner_unread": 1}}
+        )
+    
+    return message.model_dump()
+
+@api_router.get("/conversations/unread/count")
+async def get_unread_count(current_user: dict = Depends(get_current_user)):
+    """Get total unread messages count"""
+    if current_user["role"] == "owner":
+        pipeline = [
+            {"$match": {"owner_id": current_user["id"]}},
+            {"$group": {"_id": None, "total": {"$sum": "$owner_unread"}}}
+        ]
+    else:
+        collection = "walkers" if current_user["role"] == "walker" else "daycares"
+        profile = await db[collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if not profile:
+            return {"unread_count": 0}
+        pipeline = [
+            {"$match": {"provider_id": profile["id"]}},
+            {"$group": {"_id": None, "total": {"$sum": "$provider_unread"}}}
+        ]
+    
+    result = await db.conversations.aggregate(pipeline).to_list(1)
+    return {"unread_count": result[0]["total"] if result else 0}
+
 app.include_router(api_router)
 
 app.add_middleware(
