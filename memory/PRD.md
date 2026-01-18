@@ -132,6 +132,13 @@ Ver archivos:
 - GET /api/payments/wompi/status/{id}
 - POST /api/payments/wompi/webhook
 
+### Chat ✅ NEW
+- GET /api/conversations
+- POST /api/conversations
+- GET /api/conversations/{id}
+- POST /api/conversations/{id}/messages
+- GET /api/conversations/unread/count
+
 ### Safety
 - POST /api/emergency-contacts
 - GET /api/emergency-contacts
