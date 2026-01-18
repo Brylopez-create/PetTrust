@@ -65,6 +65,20 @@ const Navbar = () => {
             {user ? (
               <>
                 <Button
+                  onClick={() => setShowChat(true)}
+                  variant="ghost"
+                  className="text-stone-700 hover:text-emerald-600 relative"
+                  data-testid="chat-center-btn"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Mensajes
+                  {unreadCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full h-5 min-w-5 px-1.5 text-xs">
+                      {unreadCount}
+                    </Badge>
+                  )}
+                </Button>
+                <Button
                   onClick={() => setShowSafety(true)}
                   variant="ghost"
                   className="text-emerald-600 hover:text-emerald-700"
