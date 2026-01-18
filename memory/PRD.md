@@ -171,11 +171,10 @@ Ver archivos:
 4. Push notifications con Firebase
 
 ## Future Tasks (P2)
-1. Chat en tiempo real entre usuarios y proveedores
-2. Sistema de gamificación para proveedores
-3. Modelos de suscripción premium
-4. Panel de administración avanzado
-5. App móvil
+1. Modelos de suscripción premium
+2. Panel de administración avanzado
+3. Sistema de gamificación para proveedores
+4. App nativa (documentación de API lista en /app/API_DOCUMENTATION_MOBILE.md)
 
 ## Deployment Notes
 - Frontend: Preparado para Vercel (vercel.json incluido)
