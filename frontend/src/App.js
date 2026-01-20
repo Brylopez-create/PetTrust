@@ -73,7 +73,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/explorar" element={<Explore />} />
+          <Route path="/explorar" element={!user || user.role === 'owner' ? <Explore /> : <Navigate to="/provider-dashboard" />} />
           <Route path="/paseadores/:id" element={<WalkerProfile />} />
           <Route path="/guarderias/:id" element={<DaycareProfile />} />
           <Route path="/reservar/:type/:id" element={user ? <Booking /> : <Navigate to="/login" />} />
