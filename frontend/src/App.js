@@ -13,6 +13,7 @@ import Booking from './pages/Booking';
 import Tracking from './pages/Tracking';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import CreateProfile from './pages/CreateProfile';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
@@ -78,6 +79,7 @@ function App() {
           <Route path="/reservar/:type/:id" element={user ? <Booking /> : <Navigate to="/login" />} />
           <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
           <Route path="/provider-dashboard" element={user ? <ProviderDashboard /> : <Navigate to="/login" />} />
+          <Route path="/crear-perfil" element={user ? <CreateProfile /> : <Navigate to="/login" />} />
           <Route path="/admin" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />
           <Route path="/tracking/:bookingId" element={user ? <Tracking /> : <Navigate to="/login" />} />
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />

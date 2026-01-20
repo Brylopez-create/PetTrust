@@ -59,6 +59,10 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido")
 
+class GeoJSONLocation(BaseModel):
+    type: str = "Point"
+    coordinates: List[float] = Field(..., description="[longitude, latitude]")
+
 class UserRegister(BaseModel):
     email: EmailStr
     password: str
@@ -103,7 +107,8 @@ class WalkerProfile(BaseModel):
     certifications: List[str] = []
     profile_image: Optional[str] = None
     gallery_images: List[str] = []
-    location: str
+    location_name: str
+    location: GeoJSONLocation
     verified: bool = False
     insured: bool = True
     rating: float = 5.0
@@ -115,7 +120,6 @@ class WalkerProfile(BaseModel):
     capacity_current: int = 0
     radius_km: float = 5.0
     is_active: bool = False
-    coordinates: Optional[Dict[str, float]] = None
     working_hours: Optional[Dict[str, Any]] = None
     available_slots: List[str] = Field(default_factory=lambda: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"])
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -124,7 +128,9 @@ class WalkerCreate(BaseModel):
     bio: str
     experience_years: int
     certifications: List[str] = []
-    location: str
+    location_name: str
+    latitude: float
+    longitude: float
     price_per_walk: float
 
 class DaycareProfile(BaseModel):
@@ -133,7 +139,7 @@ class DaycareProfile(BaseModel):
     user_id: str
     name: str
     description: str
-    location: str
+    location_name: str
     amenities: List[str] = []
     gallery_images: List[str] = []
     has_cameras: bool = True
@@ -150,7 +156,7 @@ class DaycareProfile(BaseModel):
     pickup_service: bool = False
     pickup_price: float = 15000
     pickup_radius_km: float = 10.0
-    coordinates: Optional[Dict[str, float]] = None
+    location: GeoJSONLocation
     is_active: bool = True
     opening_hours: str = "07:00"
     closing_hours: str = "19:00"
@@ -159,12 +165,47 @@ class DaycareProfile(BaseModel):
 class DaycareCreate(BaseModel):
     name: str
     description: str
-    location: str
+    location_name: str
+    latitude: float
+    longitude: float
     amenities: List[str]
     has_cameras: bool = True
     has_transportation: bool = False
     has_green_areas: bool = True
+    has_green_areas: bool = True
     price_per_day: float
+
+class VetProfile(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    name: str
+    professional_license: str
+    specialties: List[str]
+    bio: str
+    experience_years: int
+    home_visit_available: bool = True
+    location_name: str
+    location: GeoJSONLocation
+    rates: Dict[str, float] = {}
+    verified: bool = False
+    verification_status: str = "pending"
+    documents: List[str] = []
+    rating: float = 0.0
+    reviews_count: int = 0
+    is_active: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class VetCreate(BaseModel):
+    professional_license: str
+    specialties: List[str]
+    bio: str
+    experience_years: int
+    home_visit_available: bool = True
+    location_name: str
+    latitude: float
+    longitude: float
+    rates: Dict[str, float]
 
 class Pet(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -591,7 +632,8 @@ async def create_walker(walker_data: WalkerCreate, current_user: dict = Depends(
     walker = WalkerProfile(
         user_id=current_user["id"],
         name=current_user["name"],
-        **walker_data.model_dump()
+        **walker_data.model_dump(exclude={"latitude", "longitude"}),
+        location=GeoJSONLocation(coordinates=[walker_data.longitude, walker_data.latitude])
     )
     await db.walkers.insert_one(walker.model_dump())
     return walker
@@ -647,7 +689,8 @@ async def create_daycare(daycare_data: DaycareCreate, current_user: dict = Depen
     
     daycare = DaycareProfile(
         user_id=current_user["id"],
-        **daycare_data.model_dump()
+        **daycare_data.model_dump(exclude={"latitude", "longitude"}),
+        location=GeoJSONLocation(coordinates=[daycare_data.longitude, daycare_data.latitude])
     )
     await db.daycares.insert_one(daycare.model_dump())
     return daycare
@@ -666,6 +709,64 @@ async def get_daycare(daycare_id: str):
     if not daycare:
         raise HTTPException(status_code=404, detail="Guardería no encontrada")
     return daycare
+
+@api_router.post("/vets", response_model=VetProfile)
+async def create_vet(vet_data: VetCreate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "vet":
+        raise HTTPException(status_code=403, detail="Solo veterinarios pueden crear perfiles")
+    
+    existing = await db.vets.find_one({"user_id": current_user["id"]}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya tienes un perfil veterinario")
+    
+    vet = VetProfile(
+        user_id=current_user["id"],
+        name=current_user["name"],
+        **vet_data.model_dump(exclude={"latitude", "longitude"}),
+        location=GeoJSONLocation(coordinates=[vet_data.longitude, vet_data.latitude])
+    )
+    await db.vets.insert_one(vet.model_dump())
+    return vet
+
+@api_router.get("/vets", response_model=List[VetProfile])
+async def get_vets(location: Optional[str] = None, verified_only: bool = False):
+    query = {}
+    if location:
+        query["location_name"] = {"$regex": location, "$options": "i"}
+    if verified_only:
+        query["verified"] = True
+    vets = await db.vets.find(query, {"_id": 0}).to_list(100)
+    return vets
+
+@api_router.get("/vets/{vet_id}", response_model=VetProfile)
+async def get_vet(vet_id: str):
+    vet = await db.vets.find_one({"id": vet_id}, {"_id": 0})
+    if not vet:
+        raise HTTPException(status_code=404, detail="Veterinario no encontrado")
+    return vet
+
+@api_router.patch("/vets/{vet_id}/verify")
+async def verify_vet(vet_id: str, verified: bool, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores pueden verificar")
+    
+    await db.vets.update_one(
+        {"id": vet_id},
+        {"$set": {"verified": verified, "verification_status": "approved" if verified else "rejected"}}
+    )
+    return {"message": "Estado de verificación actualizado"}
+
+@api_router.post("/vets/{vet_id}/documents")
+async def upload_vet_document(vet_id: str, document: str, current_user: dict = Depends(get_current_user)):
+    vet = await db.vets.find_one({"id": vet_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not vet:
+        raise HTTPException(status_code=404, detail="Perfil no encontrado")
+    
+    await db.vets.update_one(
+        {"id": vet_id},
+        {"$push": {"documents": document}, "$set": {"verification_status": "pending"}}
+    )
+    return {"message": "Documento agregado"}
 
 @api_router.post("/pets", response_model=Pet)
 async def create_pet(pet_data: PetCreate, current_user: dict = Depends(get_current_user)):
@@ -1075,20 +1176,7 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
 
 # ============= MATCHING & AVAILABILITY ENDPOINTS =============
 
-def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    """Calculate distance in km between two coordinates using Haversine formula"""
-    import math
-    R = 6371  # Earth's radius in km
-    
-    lat1_rad = math.radians(lat1)
-    lat2_rad = math.radians(lat2)
-    delta_lat = math.radians(lat2 - lat1)
-    delta_lng = math.radians(lng2 - lng1)
-    
-    a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lng/2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-    
-    return R * c
+
 
 @api_router.get("/providers/search")
 async def search_providers(
@@ -1101,13 +1189,51 @@ async def search_providers(
 ):
     """Search available providers with matching logic"""
     collection = "walkers" if service_type == "walker" else "daycares"
-    
+    if service_type == "vet":
+        collection = "vets"
+        
     query = {"is_active": True}
     
-    providers = await db[collection].find(query, {"_id": 0}).to_list(100)
+    # Use aggregation for geospatial search if coordinates provided
+    if lat and lng:
+        pipeline = [
+            {
+                "$geoNear": {
+                    "near": {"type": "Point", "coordinates": [lng, lat]},
+                    "distanceField": "distance_km",
+                    "distanceMultiplier": 0.001,  # meters to km
+                    "spherical": True,
+                    "query": query
+                }
+            }
+        ]
+        
+        # Add radius filter logic
+        if service_type == "walker":
+             pipeline.append({
+                 "$match": {
+                     "$expr": {"$lte": ["$distance_km", "$radius_km"]}
+                 }
+             })
+        elif service_type == "daycare" and needs_pickup:
+             pipeline.append({
+                 "$match": {
+                     "pickup_service": True,
+                     "$expr": {"$lte": ["$distance_km", "$pickup_radius_km"]}
+                 }
+             })
+             
+        providers = await db[collection].aggregate(pipeline).to_list(100)
+    else:
+        providers = await db[collection].find(query, {"_id": 0}).to_list(100)
+        for p in providers: 
+            p["distance_km"] = 0.0
+
     results = []
     
     for provider in providers:
+        distance_km = provider.get("distance_km", 0.0)
+        
         if service_type == "walker":
             if provider.get("capacity_current", 0) >= provider.get("capacity_max", 4):
                 continue
@@ -1124,7 +1250,7 @@ async def search_providers(
                 
             capacity_available = provider.get("capacity_max", 4) - bookings_count
             
-        else:
+        elif service_type == "daycare":
             daily_bookings = await db.bookings.count_documents({
                 "service_id": provider["id"],
                 "date": date,
@@ -1138,20 +1264,14 @@ async def search_providers(
             
             if needs_pickup and not provider.get("pickup_service", False):
                 continue
-        
-        distance_km = 0.0
-        if lat and lng and provider.get("coordinates"):
-            distance_km = haversine_distance(
-                lat, lng,
-                provider["coordinates"].get("lat", 0),
-                provider["coordinates"].get("lng", 0)
-            )
-            
-            provider_radius = provider.get("radius_km", 5) if service_type == "walker" else provider.get("pickup_radius_km", 10)
-            if distance_km > provider_radius:
-                continue
+        else:
+            # Vet
+            capacity_available = 1 # Simplified for Vet
         
         price = provider.get("price_per_walk", 25000) if service_type == "walker" else provider.get("price_per_day", 80000)
+        if service_type == "vet":
+            price = provider.get("rates", {}).get("consultation", 50000)
+            
         if needs_pickup and service_type == "daycare":
             price += provider.get("pickup_price", 15000)
         
@@ -1159,7 +1279,7 @@ async def search_providers(
             "id": provider["id"],
             "name": provider.get("name", ""),
             "bio": provider.get("bio") or provider.get("description", ""),
-            "location": provider.get("location", ""),
+            "location": provider.get("location_name", ""),
             "distance_km": round(distance_km, 2),
             "rating": provider.get("rating", 5.0),
             "reviews_count": provider.get("reviews_count", 0),
@@ -1243,25 +1363,33 @@ async def create_service_request(
         raise HTTPException(status_code=404, detail="Mascota no encontrada")
     
     collection = "walkers" if request_data.service_type == "walker" else "daycares"
-    query = {"is_active": True}
-    providers = await db[collection].find(query, {"_id": 0}).to_list(100)
-    
-    matched_providers = []
+    if request_data.service_type == "vet":
+        collection = "vets"
+
     owner_lat = request_data.owner_lat or 4.6951
     owner_lng = request_data.owner_lng or -74.0621
     
-    for provider in providers:
-        if provider.get("coordinates"):
-            distance = haversine_distance(
-                owner_lat, owner_lng,
-                provider["coordinates"].get("lat", 0),
-                provider["coordinates"].get("lng", 0)
-            )
-            provider_radius = provider.get("radius_km", 5) if request_data.service_type == "walker" else provider.get("pickup_radius_km", 10)
-            if distance <= provider_radius:
-                matched_providers.append(provider["id"])
-        else:
-            matched_providers.append(provider["id"])
+    pipeline = [
+        {
+            "$geoNear": {
+                "near": {"type": "Point", "coordinates": [owner_lng, owner_lat]},
+                "distanceField": "distance_km",
+                "distanceMultiplier": 0.001,
+                "spherical": True,
+                "query": {"is_active": True}
+            }
+        }
+    ]
+    
+    if request_data.service_type == "walker":
+         pipeline.append({
+             "$match": {
+                 "$expr": {"$lte": ["$distance_km", "$radius_km"]}
+             }
+         })
+    
+    matched_providers_data = await db[collection].aggregate(pipeline).to_list(100)
+    matched_providers = [p["id"] for p in matched_providers_data]
     
     service_request = ServiceRequest(
         owner_id=current_user["id"],
@@ -1281,33 +1409,27 @@ async def create_service_request(
     
     await db.service_requests.insert_one(service_request.model_dump())
     
-    for provider_id in matched_providers:
-        provider = await db[collection].find_one({"id": provider_id}, {"_id": 0})
-        if provider:
-            distance = 0.0
-            if provider.get("coordinates"):
-                distance = haversine_distance(
-                    owner_lat, owner_lng,
-                    provider["coordinates"].get("lat", 0),
-                    provider["coordinates"].get("lng", 0)
-                )
-            
-            earnings = provider.get("price_per_walk", 25000) if request_data.service_type == "walker" else provider.get("price_per_day", 80000)
-            
-            inbox_item = ProviderInbox(
-                provider_id=provider_id,
-                provider_type=request_data.service_type,
-                request_id=service_request.id,
-                pet_name=pet.get("name", ""),
-                pet_breed=pet.get("breed"),
-                pet_photo=pet.get("photo"),
-                owner_name=current_user["name"],
-                service_date=request_data.date,
-                service_time=request_data.time,
-                distance_km=round(distance, 2),
-                earnings=earnings
-            )
-            await db.provider_inbox.insert_one(inbox_item.model_dump())
+    for provider in matched_providers_data:
+        distance = provider.get("distance_km", 0.0)
+        
+        earnings = provider.get("price_per_walk", 25000) if request_data.service_type == "walker" else provider.get("price_per_day", 80000)
+        if request_data.service_type == "vet":
+             earnings = provider.get("rates", {}).get("consultation", 50000)
+
+        inbox_item = ProviderInbox(
+            provider_id=provider["id"],
+            provider_type=request_data.service_type,
+            request_id=service_request.id,
+            pet_name=pet.get("name", ""),
+            pet_breed=pet.get("breed"),
+            pet_photo=pet.get("photo"),
+            owner_name=current_user["name"],
+            service_date=request_data.date,
+            service_time=request_data.time,
+            distance_km=round(distance, 2),
+            earnings=earnings
+        )
+        await db.provider_inbox.insert_one(inbox_item.model_dump())
     
     return {
         "request_id": service_request.id,
@@ -1329,10 +1451,16 @@ async def get_service_request(request_id: str, current_user: dict = Depends(get_
 @api_router.get("/providers/me/profile")
 async def get_my_provider_profile(current_user: dict = Depends(get_current_user)):
     """Get current provider's profile"""
-    if current_user["role"] not in ["walker", "daycare"]:
+    if current_user["role"] not in ["walker", "daycare", "vet"]:
         raise HTTPException(status_code=403, detail="Solo proveedores")
     
-    collection = "walkers" if current_user["role"] == "walker" else "daycares"
+    if current_user["role"] == "walker":
+        collection = "walkers"
+    elif current_user["role"] == "daycare":
+        collection = "daycares"
+    else:
+        collection = "vets"
+
     profile = await db[collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
     
     if not profile:
@@ -1346,10 +1474,15 @@ async def update_provider_status(
     current_user: dict = Depends(get_current_user)
 ):
     """Update provider's active status and settings"""
-    if current_user["role"] not in ["walker", "daycare"]:
+    if current_user["role"] not in ["walker", "daycare", "vet"]:
         raise HTTPException(status_code=403, detail="Solo proveedores")
     
-    collection = "walkers" if current_user["role"] == "walker" else "daycares"
+    if current_user["role"] == "walker":
+        collection = "walkers"
+    elif current_user["role"] == "daycare":
+        collection = "daycares"
+    else:
+        collection = "vets"
     
     update_data = {}
     if status_update.is_active is not None:
@@ -1375,10 +1508,16 @@ async def update_provider_status(
 @api_router.get("/providers/me/inbox")
 async def get_provider_inbox(current_user: dict = Depends(get_current_user)):
     """Get provider's inbox with pending service requests"""
-    if current_user["role"] not in ["walker", "daycare"]:
+    if current_user["role"] not in ["walker", "daycare", "vet"]:
         raise HTTPException(status_code=403, detail="Solo proveedores")
     
-    collection = "walkers" if current_user["role"] == "walker" else "daycares"
+    if current_user["role"] == "walker":
+        collection = "walkers"
+    elif current_user["role"] == "daycare":
+        collection = "daycares"
+    else:
+        collection = "vets"
+
     profile = await db[collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
     
     if not profile:
@@ -1410,13 +1549,19 @@ async def respond_to_request(
     current_user: dict = Depends(get_current_user)
 ):
     """Respond to a service request (accept/reject)"""
-    if current_user["role"] not in ["walker", "daycare"]:
+    if current_user["role"] not in ["walker", "daycare", "vet"]:
         raise HTTPException(status_code=403, detail="Solo proveedores")
     
     if action not in ["accept", "reject"]:
         raise HTTPException(status_code=400, detail="Acción inválida")
     
-    collection = "walkers" if current_user["role"] == "walker" else "daycares"
+    if current_user["role"] == "walker":
+        collection = "walkers"
+    elif current_user["role"] == "daycare":
+        collection = "daycares"
+    else:
+        collection = "vets"
+
     profile = await db[collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
     
     if not profile:

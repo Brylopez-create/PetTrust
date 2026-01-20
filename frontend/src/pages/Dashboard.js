@@ -36,7 +36,7 @@ const Dashboard = () => {
       navigate('/admin');
       return;
     }
-    if (user?.role === 'walker' || user?.role === 'daycare') {
+    if (user?.role === 'walker' || user?.role === 'daycare' || user?.role === 'vet') {
       navigate('/provider-dashboard');
       return;
     }
@@ -83,7 +83,7 @@ const Dashboard = () => {
 
   const processPayment = async () => {
     if (!selectedBooking) return;
-    
+
     setPaymentLoading(true);
     try {
       const createResponse = await axios.post(`${API}/payments/wompi/create`, {
@@ -93,9 +93,9 @@ const Dashboard = () => {
         customer_email: user?.email || "cliente@pettrust.com",
         payment_method: "CARD"
       });
-      
+
       await axios.post(`${API}/payments/wompi/confirm/${createResponse.data.transaction_id}`);
-      
+
       toast.success('¡Pago procesado exitosamente!');
       setShowPaymentDialog(false);
       setSelectedBooking(null);
@@ -376,7 +376,7 @@ const Dashboard = () => {
           <DialogHeader>
             <DialogTitle className="font-heading text-xl">Pagar Reserva</DialogTitle>
           </DialogHeader>
-          
+
           {selectedBooking && (
             <div className="space-y-6">
               <div className="bg-stone-50 rounded-2xl p-4 space-y-3">
@@ -404,9 +404,9 @@ const Dashboard = () => {
 
               <div className="bg-purple-50 rounded-2xl p-4">
                 <div className="flex items-center gap-3 mb-2">
-                  <img 
-                    src="https://cdn.worldvectorlogo.com/logos/wompi.svg" 
-                    alt="Wompi" 
+                  <img
+                    src="https://cdn.worldvectorlogo.com/logos/wompi.svg"
+                    alt="Wompi"
                     className="h-6"
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />

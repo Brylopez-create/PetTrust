@@ -117,6 +117,10 @@ const Register = () => {
                   <RadioGroupItem value="daycare" id="daycare" data-testid="role-daycare" />
                   <Label htmlFor="daycare" className="cursor-pointer flex-1">Guardería</Label>
                 </div>
+                <div className="flex items-center space-x-2 p-3 border border-stone-200 rounded-xl hover:bg-stone-50">
+                  <RadioGroupItem value="vet" id="vet" data-testid="role-vet" />
+                  <Label htmlFor="vet" className="cursor-pointer flex-1">Veterinario</Label>
+                </div>
               </RadioGroup>
             </div>
 
