@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Explore from './pages/Explore';
 import WalkerProfile from './pages/WalkerProfile';
 import DaycareProfile from './pages/DaycareProfile';
+import VetProfile from './pages/VetProfile';
 import Dashboard from './pages/Dashboard';
 import ProviderDashboard from './pages/ProviderDashboard';
 import AdminDashboard from './pages/AdminDashboard';
@@ -76,6 +77,7 @@ function App() {
           <Route path="/explorar" element={!user || user.role === 'owner' ? <Explore /> : <Navigate to="/provider-dashboard" />} />
           <Route path="/paseadores/:id" element={<WalkerProfile />} />
           <Route path="/guarderias/:id" element={<DaycareProfile />} />
+          <Route path="/veterinarios/:id" element={<VetProfile />} />
           <Route path="/reservar/:type/:id" element={user ? <Booking /> : <Navigate to="/login" />} />
           <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
           <Route path="/provider-dashboard" element={user ? <ProviderDashboard /> : <Navigate to="/login" />} />
