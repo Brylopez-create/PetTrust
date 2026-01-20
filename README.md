@@ -17,7 +17,7 @@
 
 ## 📖 Sobre el Proyecto
 
-PetTrust es un marketplace premium que revoluciona el cuidado de mascotas en Bogotá mediante:
+PetTrust es un marketplace premium que revoluciona el cuidado de mascotas en Bogotá  y Colombia mediante:
 
 - ✅ **Paseadores Verificados:** Background checks y certificaciones validadas
 - 🗺️ **GPS en Tiempo Real:** Tracking activo durante cada paseo
