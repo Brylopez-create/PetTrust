@@ -111,7 +111,7 @@ const WalkerProfile = () => {
                         <h1 className="text-3xl font-heading font-bold text-stone-900 mb-2">{walker.name}</h1>
                         <div className="flex items-center gap-2 text-stone-600 mb-2">
                           <MapPin className="w-4 h-4" />
-                          <span>{walker.location}</span>
+                          <span>{walker.location_name}</span>
                         </div>
                       </div>
                     </div>

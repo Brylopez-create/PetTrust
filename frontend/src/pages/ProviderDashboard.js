@@ -634,7 +634,7 @@ const ProviderDashboard = () => {
                   </div>
                   <div className="p-4 bg-stone-50 rounded-2xl">
                     <p className="text-sm text-stone-600 mb-1">Ubicación</p>
-                    <p className="font-semibold text-stone-900">{profile.location_name || profile.location}</p>
+                    <p className="font-semibold text-stone-900">{profile.location_name}</p>
                   </div>
                   <div className="p-4 bg-stone-50 rounded-2xl">
                     <p className="text-sm text-stone-600 mb-1">Estado de Verificación</p>

@@ -30,7 +30,7 @@ const Dashboard = () => {
     age: '',
     weight: '',
     special_needs: '',
-    photo_url: ''
+    photo: ''
   });
 
   useEffect(() => {
@@ -63,7 +63,7 @@ const Dashboard = () => {
 
   const handleAddPet = async (e) => {
     e.preventDefault();
-    if (!newPet.photo_url) {
+    if (!newPet.photo) {
       toast.error('Por favor sube una foto de tu mascota');
       return;
     }
@@ -75,7 +75,7 @@ const Dashboard = () => {
       });
       toast.success('Mascota agregada exitosamente');
       setShowAddPet(false);
-      setNewPet({ name: '', breed: '', age: '', weight: '', special_needs: '', photo_url: '' });
+      setNewPet({ name: '', breed: '', age: '', weight: '', special_needs: '', photo: '' });
       fetchData();
     } catch (error) {
       toast.error('Error al agregar mascota');
@@ -325,8 +325,8 @@ const Dashboard = () => {
                       folder="pets"
                       label="Foto de tu Mascota"
                       required={true}
-                      onUploadComplete={(url) => setNewPet({ ...newPet, photo_url: url })}
-                      currentImage={newPet.photo_url}
+                      onUploadComplete={(url) => setNewPet({ ...newPet, photo: url })}
+                      currentImage={newPet.photo}
                     />
                     <Button type="submit" className="w-full bg-[#28B463] text-white hover:bg-[#78C494] rounded-full" data-testid="submit-pet-btn">
                       Agregar

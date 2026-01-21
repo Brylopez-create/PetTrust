@@ -66,7 +66,7 @@ const Explore = () => {
               <h3 className="font-heading font-bold text-xl text-stone-900 mb-1">{walker.name}</h3>
               <div className="flex items-center gap-1 text-sm text-stone-600">
                 <MapPin className="w-4 h-4" />
-                {walker.location}
+                {walker.location_name}
               </div>
             </div>
             <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full">
@@ -133,7 +133,7 @@ const Explore = () => {
               <h3 className="font-heading font-bold text-xl text-stone-900 mb-1">{daycare.name}</h3>
               <div className="flex items-center gap-1 text-sm text-stone-600">
                 <MapPin className="w-4 h-4" />
-                {daycare.location}
+                {daycare.location_name}
               </div>
             </div>
             <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full">

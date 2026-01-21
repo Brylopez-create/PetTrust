@@ -168,7 +168,7 @@ const AdminDashboard = () => {
                             <p className="text-stone-600 text-sm mb-3">{walker.bio}</p>
                             <div className="flex flex-wrap gap-2 mb-3">
                               <Badge className="bg-stone-100 text-stone-700 hover:bg-stone-100">
-                                {walker.location}
+                                {walker.location_name}
                               </Badge>
                               <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100">
                                 {walker.experience_years} años experiencia

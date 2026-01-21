@@ -722,7 +722,7 @@ async def create_walker(walker_data: WalkerCreate, current_user: dict = Depends(
 async def get_walkers(location: Optional[str] = None, verified_only: bool = False):
     query = {}
     if location:
-        query["location"] = {"$regex": location, "$options": "i"}
+        query["location_name"] = {"$regex": location, "$options": "i"}
     if verified_only:
         query["verified"] = True
     walkers = await db.walkers.find(query, {"_id": 0}).to_list(100)
@@ -779,7 +779,7 @@ async def create_daycare(daycare_data: DaycareCreate, current_user: dict = Depen
 async def get_daycares(location: Optional[str] = None):
     query = {}
     if location:
-        query["location"] = {"$regex": location, "$options": "i"}
+        query["location_name"] = {"$regex": location, "$options": "i"}
     daycares = await db.daycares.find(query, {"_id": 0}).to_list(100)
     return daycares
 
@@ -886,6 +886,19 @@ async def create_booking(booking_data: BookingCreate, current_user: dict = Depen
     
     collection = "walkers" if booking_data.service_type == "walker" else "daycares"
     service = await db[collection].find_one({"id": booking_data.service_id}, {"_id": 0})
+    
+    # Enforce availability check
+    availability = await check_availability(
+        service_id=booking_data.service_id,
+        service_type=booking_data.service_type,
+        date=booking_data.date,
+        time=booking_data.time
+    )
+    if not availability["available"]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"No hay disponibilidad para esta fecha/hora. {availability.get('reason', '')}"
+        )
     
     booking = Booking(
         owner_id=current_user["id"],

@@ -91,7 +91,7 @@ const DaycareProfile = () => {
                   <h1 className="text-3xl font-heading font-bold text-stone-900 mb-3">{daycare.name}</h1>
                   <div className="flex items-center gap-2 text-stone-600 mb-4">
                     <MapPin className="w-4 h-4" />
-                    <span>{daycare.location}</span>
+                    <span>{daycare.location_name}</span>
                   </div>
 
                   <div className="flex flex-wrap gap-2 mb-4">
