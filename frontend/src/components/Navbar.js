@@ -98,7 +98,10 @@ const Navbar = () => {
                     <Shield className="w-4 h-4 mr-2" />
                     Seguridad
                   </Button>
-                  <Link to={user.role === 'owner' ? '/dashboard' : '/provider-dashboard'} className="text-stone-700 hover:text-[#28B463] font-medium transition-colors flex items-center gap-2">
+                  <Link
+                    to={user.role === 'admin' ? '/admin' : (user.role === 'owner' ? '/dashboard' : '/provider-dashboard')}
+                    className="text-stone-700 hover:text-[#28B463] font-medium transition-colors flex items-center gap-2"
+                  >
                     <LayoutDashboard className="w-4 h-4" />
                     Dashboard
                   </Link>
@@ -210,7 +213,7 @@ const Navbar = () => {
                         <>
                           <SheetClose asChild>
                             <Link
-                              to={user.role === 'owner' ? '/dashboard' : '/provider-dashboard'}
+                              to={user.role === 'admin' ? '/admin' : (user.role === 'owner' ? '/dashboard' : '/provider-dashboard')}
                               className="flex items-center gap-3 p-3 rounded-xl hover:bg-stone-100 transition-colors"
                               onClick={closeMobileMenu}
                             >

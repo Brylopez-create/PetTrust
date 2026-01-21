@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request
+﻿from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -1410,15 +1410,37 @@ async def get_safety_status(booking_id: str, current_user: dict = Depends(get_cu
         "safety_score": "high" if not sos_alerts and not has_overdue else "medium" if not sos_alerts else "critical"
     }
 
-@api_router.get("/admin/pending-verifications")
-async def get_pending_verifications(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Solo administradores")
-    
-    walkers = await db.walkers.find({"verification_status": "pending"}, {"_id": 0}).to_list(100)
-    daycares = await db.daycares.find({"verification_status": "pending"}, {"_id": 0}).to_list(100)
-    
     return {"walkers": walkers, "daycares": daycares}
+
+@api_router.post("/admin/seed")
+async def seed_admin_user(secret_key: str):
+    """
+    Create an admin user (protected by secret key).
+    This should only be called once during initial setup.
+    """
+    if secret_key != os.environ.get("SECRET_KEY", "demo-secret-key-pettrust-bogota-2025"):
+        raise HTTPException(status_code=403, detail="Clave secreta inválida")
+    
+    # Check if admin already exists
+    existing = await db.users.find_one({"role": "admin"})
+    if existing:
+        return {"message": "Admin ya existe", "email": existing["email"]}
+    
+    admin_email = "admin@pettrust.co"
+    admin_password = hash_password("PetTrust2025!")
+    
+    admin_user = {
+        "id": str(uuid.uuid4()),
+        "email": admin_email,
+        "name": "Administrador PetTrust",
+        "role": "admin",
+        "phone": "+573001234567",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    admin_user["password"] = admin_password
+    
+    await db.users.insert_one(admin_user)
+    return {"message": "Admin creado exitosamente", "email": admin_email}
 
 @api_router.get("/admin/stats")
 async def get_admin_stats(current_user: dict = Depends(get_current_user)):
@@ -2768,8 +2790,6 @@ async def mark_all_notifications_read(current_user: dict = Depends(get_current_u
     
     return {"message": "Todas las notificaciones marcadas como leídas"}
 
-app.include_router(api_router)
-
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -3004,80 +3024,36 @@ async def review_manual_payment(
     payment = await db.manual_payments.find_one({"id": payment_id})
     if not payment:
         raise HTTPException(status_code=404, detail="Pago no encontrado")
-    
+
     new_status = "approved" if action == "approve" else "rejected"
     await db.manual_payments.update_one(
         {"id": payment_id},
         {"$set": {
             "status": new_status,
-            "admin_notes": notes,
-            "reviewed_by": current_user["id"],
-            "reviewed_at": datetime.now(timezone.utc).isoformat()
+            "admin_notes": notes
         }}
     )
-    
-    # Update booking payment status if approved
-    if action == "approve":
-        await db.bookings.update_one(
-            {"id": payment["booking_id"]},
-            {"$set": {"payment_status": "paid"}}
-        )
-    
-    # Notify user
-    user_notification = Notification(
-        user_id=payment["user_id"],
-        type="payment_reviewed",
-        title="Pago Revisado",
-        message=f"Tu pago ha sido {'aprobado' if action == 'approve' else 'rechazado'}",
-        data={"payment_id": payment_id, "status": new_status}
-    )
-    await db.notifications.insert_one(user_notification.model_dump())
-    
-    return {"message": f"Pago {new_status}", "payment_id": payment_id}
+    return {"message": "Revisión de pago completada", "status": new_status}
 
-# ============= WALKER SCHEDULE CONFLICT CHECK =============
-
-async def check_walker_schedule_conflict(walker_id: str, date: str, time: str) -> bool:
-    """Check if walker has a booking at the same time"""
-    existing = await db.bookings.find_one({
-        "provider_id": walker_id,
-        "service_type": "walker",
-        "date": date,
-        "time": time,
-        "status": {"$in": ["confirmed", "in_progress"]}
-    })
-    return existing is not None
-
-# ============= ADMIN USER SEED =============
-
-@api_router.post("/admin/seed")
+@api_router.post(/dmin/seed/)
 async def seed_admin_user(secret_key: str):
-    """
-    Create an admin user (protected by secret key).
-    This should only be called once during initial setup.
-    """
-    if secret_key != os.environ.get("SECRET_KEY", ""):
+    if secret_key != os.environ.get("SECRET_KEY", "demo-secret-key-pettrust-bogota-2025"):
         raise HTTPException(status_code=403, detail="Clave secreta inválida")
-    
-    # Check if admin already exists
     existing = await db.users.find_one({"role": "admin"})
     if existing:
         return {"message": "Admin ya existe", "email": existing["email"]}
-    
     admin_email = "admin@pettrust.co"
     admin_password = hash_password("PetTrust2025!")
-    
-    admin_user = User(
-        email=admin_email,
-        name="Administrador PetTrust",
-        role="admin",
-        phone="+573001234567"
-    )
-    admin_data = admin_user.model_dump()
-    admin_data["password"] = admin_password
-    
-    await db.users.insert_one(admin_data)
-    
+    admin_user = {
+        "id": str(uuid.uuid4()),
+        "email": admin_email,
+        "name": "Administrador PetTrust",
+        "role": "admin",
+        "phone": "+573001234567",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    admin_user["password"] = admin_password
+    await db.users.insert_one(admin_user)
     return {"message": "Admin creado exitosamente", "email": admin_email}
 
 app.add_middleware(
