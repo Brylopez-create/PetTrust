@@ -55,7 +55,7 @@ const AdminDashboard = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-400 border-t-transparent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#28B463]-400 border-t-transparent"></div>
       </div>
     );
   }
@@ -80,7 +80,7 @@ const AdminDashboard = () => {
                     <div className="text-3xl font-heading font-bold text-stone-900">{stats.total_bookings}</div>
                   </div>
                   <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-                    <Calendar className="w-6 h-6 text-emerald-600" />
+                    <Calendar className="w-6 h-6 text-[#28B463]" />
                   </div>
                 </div>
               </CardContent>
@@ -178,7 +178,7 @@ const AdminDashboard = () => {
                         <div className="flex gap-3 mt-4">
                           <Button
                             onClick={() => handleVerifyWalker(walker.id, true)}
-                            className="bg-emerald-400 text-white hover:bg-emerald-500 rounded-full flex-1"
+                            className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full flex-1"
                             data-testid={`approve-walker-${walker.id}`}
                           >
                             <CheckCircle2 className="w-4 h-4 mr-2" />
@@ -217,7 +217,7 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                         <div className="flex gap-3 mt-4">
-                          <Button className="bg-emerald-400 text-white hover:bg-emerald-500 rounded-full flex-1">
+                          <Button className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full flex-1">
                             <CheckCircle2 className="w-4 h-4 mr-2" />
                             Aprobar
                           </Button>

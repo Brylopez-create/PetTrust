@@ -135,14 +135,14 @@ const ChatCenter = ({ isOpen, onClose }) => {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg h-[600px] p-0 rounded-3xl overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-emerald-500 text-white p-4">
+        <div className="bg-[#78C494] text-white p-4">
           {selectedConversation ? (
             <div className="flex items-center gap-3">
               <Button
                 onClick={handleBack}
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-emerald-600 p-1"
+                className="text-white hover:bg-[#28B463] p-1"
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
@@ -196,7 +196,7 @@ const ChatCenter = ({ isOpen, onClose }) => {
                           <div
                             className={`max-w-[75%] px-4 py-2 rounded-2xl ${
                               isMine
-                                ? 'bg-emerald-500 text-white rounded-br-md'
+                                ? 'bg-[#78C494] text-white rounded-br-md'
                                 : 'bg-white text-stone-800 rounded-bl-md shadow-sm'
                             }`}
                           >
@@ -234,7 +234,7 @@ const ChatCenter = ({ isOpen, onClose }) => {
                   <Button
                     type="submit"
                     disabled={!newMessage.trim() || sending}
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full w-10 h-10 p-0"
+                    className="bg-[#78C494] hover:bg-[#28B463] text-white rounded-full w-10 h-10 p-0"
                     data-testid="send-message-btn"
                   >
                     {sending ? (
@@ -251,7 +251,7 @@ const ChatCenter = ({ isOpen, onClose }) => {
             <div className="overflow-y-auto h-full">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                  <Loader2 className="w-6 h-6 animate-spin text-[#28B463]" />
                 </div>
               ) : conversations.length === 0 ? (
                 <div className="text-center py-12 px-4">
@@ -274,7 +274,7 @@ const ChatCenter = ({ isOpen, onClose }) => {
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-full flex items-center justify-center">
-                          <User className="w-6 h-6 text-emerald-600" />
+                          <User className="w-6 h-6 text-[#28B463]" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
@@ -292,7 +292,7 @@ const ChatCenter = ({ isOpen, onClose }) => {
                               {conversation.last_message || 'Sin mensajes'}
                             </p>
                             {getUnreadCount(conversation) > 0 && (
-                              <Badge className="bg-emerald-500 text-white rounded-full h-5 min-w-5 px-1.5">
+                              <Badge className="bg-[#78C494] text-white rounded-full h-5 min-w-5 px-1.5">
                                 {getUnreadCount(conversation)}
                               </Badge>
                             )}

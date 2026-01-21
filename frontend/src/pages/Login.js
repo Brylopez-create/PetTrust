@@ -74,7 +74,7 @@ const Login = () => {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-emerald-400 text-white hover:bg-emerald-500 rounded-full text-lg font-semibold shadow-lg shadow-emerald-100"
+              className="w-full h-12 bg-[#28B463] text-white hover:bg-[#78C494] rounded-full text-lg font-semibold shadow-lg shadow-emerald-100"
               data-testid="login-submit-btn"
             >
               {loading ? 'Ingresando...' : 'Ingresar'}
@@ -83,7 +83,7 @@ const Login = () => {
 
           <div className="mt-6 text-center text-sm text-stone-600">
             ¿No tienes cuenta?{' '}
-            <Link to="/registro" className="text-emerald-600 font-semibold hover:text-emerald-700" data-testid="go-to-register-link">
+            <Link to="/registro" className="text-[#28B463] font-semibold hover:text-emerald-700" data-testid="go-to-register-link">
               Regístrate aquí
             </Link>
           </div>

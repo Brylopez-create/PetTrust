@@ -10,10 +10,33 @@ import { Badge } from '../components/ui/badge';
 import { Switch } from '../components/ui/switch';
 import { Slider } from '../components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Checkbox } from '../components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../components/ui/dialog"
+import { Input } from "../components/ui/input"
+import { Label } from "../components/ui/label"
+import { Textarea } from "../components/ui/textarea"
 import {
   Inbox, Calendar, Settings, MapPin, Clock, DollarSign,
   CheckCircle, XCircle, AlertCircle, User, Dog, Loader2
 } from 'lucide-react';
+
+const AMENITIES_OPTIONS = [
+  "Cámaras de seguridad", "Transporte", "Zonas verdes", "Piscina",
+  "Aire acondicionado", "Juegos interactivos", "Entrenamiento básico", "Spa/Grooming"
+];
+
+const SPECIALTIES_OPTIONS = [
+  "Medicina General", "Cirugía", "Dermatología", "Odontología",
+  "Oftalmología", "Fisioterapia", "Comportamiento", "Urgencias"
+];
 
 const ProviderDashboard = () => {
   const { user } = useContext(AuthContext);
@@ -25,6 +48,12 @@ const ProviderDashboard = () => {
   const [responding, setResponding] = useState(null);
   const [isActive, setIsActive] = useState(false);
   const [capacityMax, setCapacityMax] = useState(4);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({});
+  const [editAmenities, setEditAmenities] = useState([]);
+  const [editSpecialties, setEditSpecialties] = useState([]);
 
   useEffect(() => {
     if (!user || (user.role !== 'walker' && user.role !== 'daycare' && user.role !== 'vet')) {
@@ -54,6 +83,18 @@ const ProviderDashboard = () => {
         setProfile(response.data);
         setIsActive(response.data.is_active || false);
         setCapacityMax(response.data.capacity_max || response.data.capacity_total || 4);
+
+        // Initialize form data
+        setEditForm({
+          bio: response.data.bio || response.data.description || '',
+          price: response.data.price_per_walk || response.data.price_per_day || (response.data.rates ? response.data.rates.consultation : 0),
+          experience_years: response.data.experience_years || 0,
+          location_name: response.data.location_name || response.data.location || '',
+        });
+
+        // Initialize arrays
+        setEditAmenities(response.data.amenities || []);
+        setEditSpecialties(response.data.specialties || []);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -84,6 +125,7 @@ const ProviderDashboard = () => {
       await axios.patch(`${API}/providers/me/status`, { is_active: newStatus });
       setIsActive(newStatus);
       toast.success(newStatus ? 'Ahora estás recibiendo solicitudes' : 'Has pausado las solicitudes');
+      setProfile(prev => ({ ...prev, is_active: newStatus }));
     } catch (error) {
       toast.error('Error al actualizar estado');
     }
@@ -96,6 +138,44 @@ const ProviderDashboard = () => {
       toast.success(`Capacidad actualizada a ${newCapacity[0]}`);
     } catch (error) {
       toast.error('Error al actualizar capacidad');
+    }
+  };
+
+  const handleCheckboxChange = (checked, item, list, setList) => {
+    if (checked) {
+      setList([...list, item]);
+    } else {
+      setList(list.filter((i) => i !== item));
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    try {
+      const payload = {};
+      if (user.role === 'walker') {
+        payload.bio = editForm.bio;
+        payload.price_per_walk = parseFloat(editForm.price);
+        payload.experience_years = parseInt(editForm.experience_years);
+      } else if (user.role === 'daycare') {
+        payload.bio = editForm.bio;
+        payload.price_per_day = parseFloat(editForm.price);
+        payload.amenities = editAmenities;
+      } else if (user.role === 'vet') {
+        payload.bio = editForm.bio;
+        payload.experience_years = parseInt(editForm.experience_years);
+        payload.specialties = editSpecialties;
+        payload.rates = { consultation: parseFloat(editForm.price) };
+      }
+
+      // Shared fields
+      if (editForm.location_name) payload.location_name = editForm.location_name;
+
+      const res = await axios.patch(`${API}/providers/me/profile`, payload);
+      toast.success("Perfil actualizado");
+      setIsEditing(false);
+      fetchProfile(); // Refresh
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Error al actualizar perfil");
     }
   };
 
@@ -134,7 +214,7 @@ const ProviderDashboard = () => {
       <div className="min-h-screen bg-stone-50">
         <Navbar />
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#28B463]" />
         </div>
       </div>
     );
@@ -152,11 +232,11 @@ const ProviderDashboard = () => {
                 Perfil no configurado
               </h2>
               <p className="text-stone-600 mb-6">
-                Necesitas crear tu perfil de {user?.role === 'walker' ? 'paseador' : 'guardería'} para comenzar a recibir solicitudes.
+                Necesitas crear tu perfil de {user?.role === 'walker' ? 'paseador' : user?.role === 'daycare' ? 'Guardería' : 'Veterinario'} para comenzar a recibir solicitudes.
               </p>
               <Button
                 onClick={() => navigate('/crear-perfil')}
-                className="bg-emerald-400 text-white hover:bg-emerald-500 rounded-full"
+                className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full"
               >
                 Completar Perfil
               </Button>
@@ -183,7 +263,7 @@ const ProviderDashboard = () => {
           <Card className="rounded-2xl border-stone-200 p-4">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <span className={`w-3 h-3 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-stone-300'}`}></span>
+                <span className={`w-3 h-3 rounded-full ${isActive ? 'bg-[#78C494] animate-pulse' : 'bg-stone-300'}`}></span>
                 <span className="font-medium text-stone-700">
                   {isActive ? 'Recibiendo solicitudes' : 'Pausado'}
                 </span>
@@ -212,18 +292,27 @@ const ProviderDashboard = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-stone-600">Máximo</span>
-                  <span className="font-medium">{capacityMax} {user?.role === 'walker' ? 'perros' : 'cupos'}</span>
-                </div>
-                <Slider
-                  value={[capacityMax]}
-                  onValueCommit={handleCapacityChange}
-                  max={user?.role === 'walker' ? 6 : 50}
-                  min={1}
-                  step={1}
-                  className="py-2"
-                />
+                {user?.role !== 'vet' && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-stone-600">Máximo</span>
+                      <span className="font-medium">{capacityMax} {user?.role === 'walker' ? 'perros' : 'cupos'}</span>
+                    </div>
+                    <Slider
+                      value={[capacityMax]}
+                      onValueCommit={handleCapacityChange}
+                      max={user?.role === 'walker' ? 6 : 50}
+                      min={1}
+                      step={1}
+                      className="py-2"
+                    />
+                  </>
+                )}
+                {user?.role === 'vet' && (
+                  <div className="text-sm text-stone-500">
+                    Tu disponibilidad se gestiona por agenda.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -251,12 +340,12 @@ const ProviderDashboard = () => {
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-emerald-600" />
+                  <DollarSign className="w-5 h-5 text-[#28B463]" />
                 </div>
                 <div>
-                  <p className="text-sm text-stone-600">Precio por {user?.role === 'walker' ? 'Paseo' : 'Día'}</p>
+                  <p className="text-sm text-stone-600">Precio Base</p>
                   <p className="text-2xl font-bold text-stone-900">
-                    {formatPrice(profile.price_per_walk || profile.price_per_day)}
+                    {formatPrice(profile.price_per_walk || profile.price_per_day || (profile.rates?.consultation || 0))}
                   </p>
                 </div>
               </div>
@@ -308,7 +397,7 @@ const ProviderDashboard = () => {
                 {inbox.map((item) => (
                   <Card
                     key={item.id}
-                    className={`rounded-2xl border-2 transition-all ${item.is_expired ? 'border-stone-200 opacity-60' : 'border-emerald-200 hover:border-emerald-300'
+                    className={`rounded-2xl border-2 transition-all ${item.is_expired ? 'border-stone-200 opacity-60' : 'border-[#28B463]-200 hover:border-[#28B463]-300'
                       }`}
                     data-testid={`inbox-item-${item.id}`}
                   >
@@ -352,7 +441,7 @@ const ProviderDashboard = () => {
 
                         <div className="flex items-center gap-4">
                           <div className="text-right">
-                            <p className="text-2xl font-bold text-emerald-600">
+                            <p className="text-2xl font-bold text-[#28B463]">
                               {formatPrice(item.earnings)}
                             </p>
                             {!item.is_expired && item.expires_in_seconds > 0 && (
@@ -387,7 +476,7 @@ const ProviderDashboard = () => {
                                 onClick={() => handleRespond(item.id, 'accept')}
                                 size="sm"
                                 disabled={responding === item.id}
-                                className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-white px-6"
+                                className="rounded-full bg-[#78C494] hover:bg-[#28B463] text-white px-6"
                                 data-testid={`accept-btn-${item.id}`}
                               >
                                 {responding === item.id ? (
@@ -410,53 +499,121 @@ const ProviderDashboard = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="schedule">
-            <Card className="rounded-3xl border-stone-200">
-              <CardHeader>
-                <CardTitle className="font-heading">Agenda de Hoy</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {schedule.bookings.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Calendar className="w-12 h-12 text-stone-300 mx-auto mb-3" />
-                    <p className="text-stone-600">No tienes reservas para hoy</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4" data-testid="schedule-list">
-                    {schedule.bookings.map((booking) => (
-                      <div
-                        key={booking.id}
-                        className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl"
-                        data-testid={`schedule-item-${booking.id}`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-                            <Clock className="w-5 h-5 text-emerald-600" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-stone-900">{booking.time || 'Sin hora'}</p>
-                            <p className="text-sm text-stone-600">{booking.pet_name} - {booking.owner_name}</p>
-                          </div>
-                        </div>
-                        <Badge className={`rounded-full ${booking.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
-                            booking.status === 'in_progress' ? 'bg-sky-100 text-sky-700' :
-                              'bg-stone-100 text-stone-600'
-                          }`}>
-                          {booking.status === 'confirmed' ? 'Confirmado' :
-                            booking.status === 'in_progress' ? 'En progreso' : booking.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="settings">
             <Card className="rounded-3xl border-stone-200">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="font-heading">Configuración del Perfil</CardTitle>
+                <Dialog open={isEditing} onOpenChange={setIsEditing}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="rounded-full">
+                      Editar Perfil
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>Editar Perfil</DialogTitle>
+                      <DialogDescription>
+                        Realiza cambios en tu perfil público y tarifas.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="bio" className="text-right">
+                          Bio/Desc
+                        </Label>
+                        <Textarea
+                          id="bio"
+                          value={editForm.bio}
+                          onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                          className="col-span-3"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="price" className="text-right">
+                          Precio Base
+                        </Label>
+                        <Input
+                          id="price"
+                          type="number"
+                          value={editForm.price}
+                          onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                          className="col-span-3"
+                        />
+                      </div>
+
+                      {(user.role === 'walker' || user.role === 'vet') && (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="exp" className="text-right">
+                            Exp (Años)
+                          </Label>
+                          <Input
+                            id="exp"
+                            type="number"
+                            value={editForm.experience_years}
+                            onChange={(e) => setEditForm({ ...editForm, experience_years: e.target.value })}
+                            className="col-span-3"
+                          />
+                        </div>
+                      )}
+
+                      {user.role === 'vet' && (
+                        <div className="grid grid-cols-4 gap-4">
+                          <Label className="text-right mt-2">
+                            Especialidades
+                          </Label>
+                          <div className="col-span-3 grid grid-cols-2 gap-2 border rounded-md p-2">
+                            {SPECIALTIES_OPTIONS.map((item) => (
+                              <div key={item} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`edit-spec-${item}`}
+                                  checked={editSpecialties.includes(item)}
+                                  onCheckedChange={(checked) => handleCheckboxChange(checked, item, editSpecialties, setEditSpecialties)}
+                                />
+                                <label
+                                  htmlFor={`edit-spec-${item}`}
+                                  className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                  {item}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {user.role === 'daycare' && (
+                        <div className="grid grid-cols-4 gap-4">
+                          <Label className="text-right mt-2">
+                            Amenidades
+                          </Label>
+                          <div className="col-span-3 grid grid-cols-2 gap-2 border rounded-md p-2">
+                            {AMENITIES_OPTIONS.map((item) => (
+                              <div key={item} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`edit-amenity-${item}`}
+                                  checked={editAmenities.includes(item)}
+                                  onCheckedChange={(checked) => handleCheckboxChange(checked, item, editAmenities, setEditAmenities)}
+                                />
+                                <label
+                                  htmlFor={`edit-amenity-${item}`}
+                                  className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                  {item}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" onClick={handleUpdateProfile}>Guardar Cambios</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
@@ -477,13 +634,13 @@ const ProviderDashboard = () => {
                   </div>
                   <div className="p-4 bg-stone-50 rounded-2xl">
                     <p className="text-sm text-stone-600 mb-1">Ubicación</p>
-                    <p className="font-semibold text-stone-900">{profile.location}</p>
+                    <p className="font-semibold text-stone-900">{profile.location_name || profile.location}</p>
                   </div>
                   <div className="p-4 bg-stone-50 rounded-2xl">
                     <p className="text-sm text-stone-600 mb-1">Estado de Verificación</p>
                     <Badge className={`rounded-full ${profile.verification_status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
-                        profile.verification_status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                          'bg-red-100 text-red-700'
+                      profile.verification_status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                        'bg-red-100 text-red-700'
                       }`}>
                       {profile.verification_status === 'approved' ? 'Aprobado' :
                         profile.verification_status === 'pending' ? 'En revisión' : 'Rechazado'}

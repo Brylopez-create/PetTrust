@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
 import { CalendarDays, MapPin, Clock, PlusCircle, CreditCard, Loader2 } from 'lucide-react';
+import ImageUpload from '../components/ImageUpload';
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
@@ -28,7 +29,8 @@ const Dashboard = () => {
     breed: '',
     age: '',
     weight: '',
-    special_needs: ''
+    special_needs: '',
+    photo_url: ''
   });
 
   useEffect(() => {
@@ -61,6 +63,10 @@ const Dashboard = () => {
 
   const handleAddPet = async (e) => {
     e.preventDefault();
+    if (!newPet.photo_url) {
+      toast.error('Por favor sube una foto de tu mascota');
+      return;
+    }
     try {
       await axios.post(`${API}/pets`, {
         ...newPet,
@@ -69,7 +75,7 @@ const Dashboard = () => {
       });
       toast.success('Mascota agregada exitosamente');
       setShowAddPet(false);
-      setNewPet({ name: '', breed: '', age: '', weight: '', special_needs: '' });
+      setNewPet({ name: '', breed: '', age: '', weight: '', special_needs: '', photo_url: '' });
       fetchData();
     } catch (error) {
       toast.error('Error al agregar mascota');
@@ -157,7 +163,7 @@ const Dashboard = () => {
           <TabsContent value="bookings">
             {loading ? (
               <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-400 border-t-transparent mx-auto"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#28B463]-400 border-t-transparent mx-auto"></div>
               </div>
             ) : bookings.length === 0 ? (
               <Card className="rounded-3xl border-stone-200">
@@ -165,7 +171,7 @@ const Dashboard = () => {
                   <p className="text-stone-600 mb-4">Aún no tienes reservas</p>
                   <Button
                     onClick={() => navigate('/explorar')}
-                    className="bg-emerald-400 text-white hover:bg-emerald-500 rounded-full"
+                    className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full"
                     data-testid="explore-services-btn"
                   >
                     Explorar Servicios
@@ -216,7 +222,7 @@ const Dashboard = () => {
                           <Button
                             onClick={() => handlePayBooking(booking)}
                             size="sm"
-                            className="flex-1 bg-emerald-500 text-white hover:bg-emerald-600 rounded-full"
+                            className="flex-1 bg-[#78C494] text-white hover:bg-[#28B463] rounded-full"
                             data-testid={`pay-booking-btn-${booking.id}`}
                           >
                             <CreditCard className="w-4 h-4 mr-1" />
@@ -246,7 +252,7 @@ const Dashboard = () => {
             <div className="mb-6">
               <Dialog open={showAddPet} onOpenChange={setShowAddPet}>
                 <DialogTrigger asChild>
-                  <Button className="bg-emerald-400 text-white hover:bg-emerald-500 rounded-full" data-testid="add-pet-btn">
+                  <Button className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full" data-testid="add-pet-btn">
                     <PlusCircle className="w-4 h-4 mr-2" />
                     Agregar Mascota
                   </Button>
@@ -315,7 +321,14 @@ const Dashboard = () => {
                         data-testid="pet-special-needs-input"
                       />
                     </div>
-                    <Button type="submit" className="w-full bg-emerald-400 text-white hover:bg-emerald-500 rounded-full" data-testid="submit-pet-btn">
+                    <ImageUpload
+                      folder="pets"
+                      label="Foto de tu Mascota"
+                      required={true}
+                      onUploadComplete={(url) => setNewPet({ ...newPet, photo_url: url })}
+                      currentImage={newPet.photo_url}
+                    />
+                    <Button type="submit" className="w-full bg-[#28B463] text-white hover:bg-[#78C494] rounded-full" data-testid="submit-pet-btn">
                       Agregar
                     </Button>
                   </form>
@@ -325,7 +338,7 @@ const Dashboard = () => {
 
             {loading ? (
               <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-400 border-t-transparent mx-auto"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#28B463]-400 border-t-transparent mx-auto"></div>
               </div>
             ) : pets.length === 0 ? (
               <Card className="rounded-3xl border-stone-200">
@@ -396,7 +409,7 @@ const Dashboard = () => {
                 )}
                 <div className="flex justify-between pt-3 border-t border-stone-200">
                   <span className="text-stone-900 font-semibold">Total</span>
-                  <span className="text-2xl font-bold text-emerald-600">
+                  <span className="text-2xl font-bold text-[#28B463]">
                     {formatPrice(selectedBooking.price)}
                   </span>
                 </div>
@@ -428,7 +441,7 @@ const Dashboard = () => {
                 </Button>
                 <Button
                   onClick={processPayment}
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full"
+                  className="flex-1 bg-[#78C494] hover:bg-[#28B463] text-white rounded-full"
                   disabled={paymentLoading}
                   data-testid="confirm-payment-btn"
                 >

@@ -99,7 +99,7 @@ const NotificationCenter = ({ isOpen, onClose }) => {
 
   const getIcon = (type) => {
     switch (type) {
-      case 'new_request': return <Bell className="w-5 h-5 text-emerald-500" />;
+      case 'new_request': return <Bell className="w-5 h-5 text-[#28B463]" />;
       case 'booking_confirmed': return <Check className="w-5 h-5 text-sky-500" />;
       case 'message': return <MessageCircle className="w-5 h-5 text-purple-500" />;
       case 'review': return <Star className="w-5 h-5 text-amber-500" />;
@@ -125,7 +125,7 @@ const NotificationCenter = ({ isOpen, onClose }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md h-[500px] p-0 rounded-3xl overflow-hidden flex flex-col">
-        <div className="bg-emerald-500 text-white p-4">
+        <div className="bg-[#78C494] text-white p-4">
           <DialogHeader className="p-0">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-white flex items-center gap-2">
@@ -165,7 +165,7 @@ const NotificationCenter = ({ isOpen, onClose }) => {
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+              <Loader2 className="w-6 h-6 animate-spin text-[#28B463]" />
             </div>
           ) : notifications.length === 0 ? (
             <div className="text-center py-12 px-4">
@@ -208,7 +208,7 @@ const NotificationCenter = ({ isOpen, onClose }) => {
                       </p>
                     </div>
                     {!notification.read && (
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0 mt-2" />
+                      <div className="w-2 h-2 bg-[#78C494] rounded-full flex-shrink-0 mt-2" />
                     )}
                   </div>
                 </button>

@@ -51,16 +51,16 @@ const Navbar = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#0F4C75] to-[#368DD1] rounded-full flex items-center justify-center border-2 border-[#28B463]">
                 <span className="text-white text-xl font-bold">🐾</span>
               </div>
-              <span className="text-xl font-heading font-bold text-stone-900">PetTrust</span>
+              <span className="text-xl font-heading font-bold text-[#0F4C75]">PetTrust</span>
             </Link>
 
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center space-x-8">
               {(!user || user.role === 'owner') && (
-                <Link to="/explorar" className="text-stone-700 hover:text-emerald-600 font-medium transition-colors">
+                <Link to="/explorar" className="text-stone-700 hover:text-[#28B463] font-medium transition-colors">
                   Explorar
                 </Link>
               )}
@@ -69,7 +69,7 @@ const Navbar = () => {
                   <Button
                     onClick={() => setShowChat(true)}
                     variant="ghost"
-                    className="text-stone-700 hover:text-emerald-600 relative"
+                    className="text-stone-700 hover:text-[#28B463] relative"
                     data-testid="chat-center-btn"
                   >
                     <MessageCircle className="w-4 h-4 mr-2" />
@@ -83,20 +83,20 @@ const Navbar = () => {
                   <Button
                     onClick={() => setShowSafety(true)}
                     variant="ghost"
-                    className="text-emerald-600 hover:text-emerald-700"
+                    className="text-[#28B463] hover:text-emerald-700"
                     data-testid="safety-center-btn"
                   >
                     <Shield className="w-4 h-4 mr-2" />
                     Seguridad
                   </Button>
-                  <Link to={user.role === 'owner' ? '/dashboard' : '/provider-dashboard'} className="text-stone-700 hover:text-emerald-600 font-medium transition-colors flex items-center gap-2">
+                  <Link to={user.role === 'owner' ? '/dashboard' : '/provider-dashboard'} className="text-stone-700 hover:text-[#28B463] font-medium transition-colors flex items-center gap-2">
                     <LayoutDashboard className="w-4 h-4" />
                     Dashboard
                   </Link>
                   <Button
                     onClick={handleLogout}
                     variant="ghost"
-                    className="text-stone-700 hover:text-emerald-600"
+                    className="text-stone-700 hover:text-[#28B463]"
                     data-testid="logout-btn"
                   >
                     <LogOut className="w-4 h-4 mr-2" />
@@ -106,13 +106,13 @@ const Navbar = () => {
               ) : (
                 <>
                   <Link to="/login">
-                    <Button variant="ghost" className="text-stone-700 hover:text-emerald-600" data-testid="login-btn">
+                    <Button variant="ghost" className="text-stone-700 hover:text-[#28B463]" data-testid="login-btn">
                       <User className="w-4 h-4 mr-2" />
                       Ingresar
                     </Button>
                   </Link>
                   <Link to="/registro">
-                    <Button className="bg-emerald-400 text-white hover:bg-emerald-500 rounded-full shadow-lg shadow-emerald-100" data-testid="register-btn">
+                    <Button className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full shadow-lg shadow-green-100" data-testid="register-btn">
                       Registrarse
                     </Button>
                   </Link>
@@ -147,7 +147,7 @@ const Navbar = () => {
 
                     {/* User Info */}
                     {user && (
-                      <div className="p-4 bg-emerald-50 border-b border-emerald-100">
+                      <div className="p-4 bg-emerald-50 border-b border-[#28B463]-100">
                         <p className="font-semibold text-stone-900">{user.name}</p>
                         <p className="text-sm text-stone-600">{user.email}</p>
                         <span className="inline-block mt-2 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
@@ -202,8 +202,8 @@ const Navbar = () => {
                             }}
                             className="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors w-full text-left"
                           >
-                            <Shield className="w-5 h-5 text-emerald-600" />
-                            <span className="font-medium text-emerald-600">Centro de Seguridad</span>
+                            <Shield className="w-5 h-5 text-[#28B463]" />
+                            <span className="font-medium text-[#28B463]">Centro de Seguridad</span>
                           </button>
 
                           <button
@@ -245,7 +245,7 @@ const Navbar = () => {
                           </SheetClose>
                           <SheetClose asChild>
                             <Link to="/registro" onClick={closeMobileMenu}>
-                              <Button className="w-full bg-emerald-400 text-white hover:bg-emerald-500 rounded-xl h-12">
+                              <Button className="w-full bg-[#28B463] text-white hover:bg-[#78C494] rounded-xl h-12">
                                 Registrarse
                               </Button>
                             </Link>

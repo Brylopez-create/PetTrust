@@ -52,7 +52,7 @@ const DaycareProfile = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-400 border-t-transparent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#28B463]-400 border-t-transparent"></div>
       </div>
     );
   }
@@ -214,7 +214,7 @@ const DaycareProfile = () => {
 
                 <Button
                   onClick={handleBooking}
-                  className="w-full h-14 bg-emerald-400 text-white hover:bg-emerald-500 rounded-full text-lg font-semibold shadow-lg shadow-emerald-100 mb-4"
+                  className="w-full h-14 bg-[#28B463] text-white hover:bg-[#78C494] rounded-full text-lg font-semibold shadow-lg shadow-emerald-100 mb-4"
                   data-testid="book-daycare-btn"
                 >
                   Reservar Estadía

@@ -2,43 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Montserrat from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+
 body {
     margin: 0;
-    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #FAFAF9;
+    background-color: #FAFAFA;
 }
 
 h1, h2, h3, h4, h5, h6 {
-    font-family: 'Nunito', sans-serif;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
 }
 
 code {
     font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
 
+/* PetTrust Brand Color Palette */
+:root {
+    /* Navy Blue - Primary */
+    --pettrust-navy: #0F4C75;
+    /* Teal - Secondary */
+    --pettrust-teal: #368DD1;
+    /* Green - Accent/Success */
+    --pettrust-green: #28B463;
+    /* Light Green */
+    --pettrust-green-light: #78C494;
+    /* Dark Grey - Text */
+    --pettrust-dark: #313133;
+    /* White */
+    --pettrust-white: #FFFFFF;
+}
+
 @layer base {
     :root {
-        --background: 60 9.1% 97.8%;
-        --foreground: 24 9.8% 10%;
+        --background: 0 0% 98%;
+        --foreground: 220 10% 20%;
         --card: 0 0% 100%;
-        --card-foreground: 24 9.8% 10%;
+        --card-foreground: 220 10% 20%;
         --popover: 0 0% 100%;
-        --popover-foreground: 24 9.8% 10%;
-        --primary: 160 84.4% 52.2%;
+        --popover-foreground: 220 10% 20%;
+        /* Navy Blue as Primary: #0F4C75 = HSL(203, 77%, 26%) */
+        --primary: 203 77% 26%;
         --primary-foreground: 0 0% 100%;
-        --secondary: 199 95.3% 73.7%;
-        --secondary-foreground: 24 9.8% 10%;
-        --muted: 60 4.8% 95.9%;
-        --muted-foreground: 25 5.3% 44.7%;
-        --accent: 24 100% 72.2%;
-        --accent-foreground: 24 9.8% 10%;
+        /* Teal as Secondary: #368DD1 = HSL(208, 62%, 51%) */
+        --secondary: 208 62% 51%;
+        --secondary-foreground: 0 0% 100%;
+        --muted: 210 20% 96%;
+        --muted-foreground: 220 10% 45%;
+        /* Green as Accent: #28B463 = HSL(145, 63%, 43%) */
+        --accent: 145 63% 43%;
+        --accent-foreground: 0 0% 100%;
         --destructive: 0 84.2% 60.2%;
         --destructive-foreground: 0 0% 100%;
-        --border: 20 5.9% 90%;
-        --input: 20 5.9% 90%;
-        --ring: 160 84.4% 52.2%;
+        --border: 220 13% 91%;
+        --input: 220 13% 91%;
+        --ring: 203 77% 26%;
         --radius: 1rem;
     }
 }
@@ -48,12 +71,46 @@ code {
         @apply border-border;
     }
     body {
-        @apply bg-stone-50 text-stone-900;
+        @apply bg-background text-foreground;
     }
 }
 
 @layer utilities {
     .text-balance {
         text-wrap: balance;
+    }
+}
+
+/* Brand-specific utility classes */
+@layer utilities {
+    .bg-pettrust-navy {
+        background-color: var(--pettrust-navy);
+    }
+    .bg-pettrust-teal {
+        background-color: var(--pettrust-teal);
+    }
+    .bg-pettrust-green {
+        background-color: var(--pettrust-green);
+    }
+    .bg-pettrust-green-light {
+        background-color: var(--pettrust-green-light);
+    }
+    .text-pettrust-navy {
+        color: var(--pettrust-navy);
+    }
+    .text-pettrust-teal {
+        color: var(--pettrust-teal);
+    }
+    .text-pettrust-green {
+        color: var(--pettrust-green);
+    }
+    .text-pettrust-dark {
+        color: var(--pettrust-dark);
+    }
+    .border-pettrust-navy {
+        border-color: var(--pettrust-navy);
+    }
+    .border-pettrust-green {
+        border-color: var(--pettrust-green);
     }
 }

@@ -197,7 +197,7 @@ const SafetyCenter = ({ bookingId, onClose }) => {
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="flex items-center gap-2">
-                <CheckCircle className={safetyStatus.pin_verified ? 'w-4 h-4 text-emerald-500' : 'w-4 h-4 text-stone-300'} />
+                <CheckCircle className={safetyStatus.pin_verified ? 'w-4 h-4 text-[#28B463]' : 'w-4 h-4 text-stone-300'} />
                 <span>PIN Verificado</span>
               </div>
               <div className="flex items-center gap-2">
@@ -228,7 +228,7 @@ const SafetyCenter = ({ bookingId, onClose }) => {
       <Card className="rounded-2xl border-stone-200">
         <CardContent className="p-6">
           <div className="flex items-center gap-3 mb-4">
-            <Share2 className="w-5 h-5 text-emerald-600" />
+            <Share2 className="w-5 h-5 text-[#28B463]" />
             <span className="font-semibold text-stone-900">Compartir Paseo</span>
           </div>
           
@@ -236,7 +236,7 @@ const SafetyCenter = ({ bookingId, onClose }) => {
             <Button
               onClick={handleShareTrip}
               disabled={loading || !bookingId}
-              className="w-full bg-emerald-400 text-white hover:bg-emerald-500 rounded-xl"
+              className="w-full bg-[#28B463] text-white hover:bg-[#78C494] rounded-xl"
             >
               Generar Link de Seguimiento
             </Button>
@@ -319,7 +319,7 @@ const SafetyCenter = ({ bookingId, onClose }) => {
               onClick={() => setShowAddContact(!showAddContact)}
               size="sm"
               variant="ghost"
-              className="text-emerald-600"
+              className="text-[#28B463]"
             >
               + Agregar
             </Button>

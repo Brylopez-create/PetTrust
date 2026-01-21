@@ -18,6 +18,9 @@ from passlib.context import CryptContext
 import base64
 import secrets
 import random
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -26,10 +29,32 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# Cloudinary Configuration
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
+    api_key=os.environ.get('CLOUDINARY_API_KEY', ''),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET', ''),
+    secure=True
+)
+
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+origins = [
+    "http://localhost:3000",
+    "https://pettrust.vercel.app",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 api_router = APIRouter(prefix="/api")
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'demo-secret-key-pettrust-bogota-2025')
@@ -212,6 +237,20 @@ class VetCreate(BaseModel):
     latitude: float
     longitude: float
     rates: Dict[str, float]
+
+class ProviderProfileUpdate(BaseModel):
+    bio: Optional[str] = None
+    price_per_walk: Optional[float] = None
+    price_per_day: Optional[float] = None
+    rates: Optional[Dict[str, float]] = None
+    specialties: Optional[List[str]] = None
+    amenities: Optional[List[str]] = None
+    experience_years: Optional[int] = None
+    location_name: Optional[str] = None
+    radius_km: Optional[float] = None
+    home_visit_available: Optional[bool] = None
+    pickup_service: Optional[bool] = None
+    pickup_price: Optional[float] = None
 
 class Pet(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -1477,6 +1516,41 @@ async def get_my_provider_profile(current_user: dict = Depends(get_current_user)
     
     return profile
 
+@api_router.patch("/providers/me/profile")
+async def update_provider_profile(
+    profile_update: ProviderProfileUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update provider's profile details"""
+    if current_user["role"] not in ["walker", "daycare", "vet"]:
+        raise HTTPException(status_code=403, detail="Solo proveedores")
+    
+    if current_user["role"] == "walker":
+        collection = "walkers"
+    elif current_user["role"] == "daycare":
+        collection = "daycares"
+    else:
+        collection = "vets"
+    
+    update_data = {k: v for k, v in profile_update.model_dump().items() if v is not None}
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Sin datos para actualizar")
+    
+    result = await db[collection].update_one(
+        {"user_id": current_user["id"]},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count == 0:
+        # Check if profile exists
+        existing = await db[collection].find_one({"user_id": current_user["id"]})
+        if not existing:
+             raise HTTPException(status_code=404, detail="Perfil no encontrado")
+        # If exists but nothing modified, it's fine
+    
+    return {"message": "Perfil actualizado", "updates": update_data}
+
 @api_router.patch("/providers/me/status")
 async def update_provider_status(
     status_update: ProviderStatusUpdate,
@@ -1619,6 +1693,24 @@ async def respond_to_request(
             "accepted_at": datetime.now(timezone.utc).isoformat()
         }}
     )
+    
+    # Check for schedule conflicts (only for walkers)
+    if current_user["role"] == "walker":
+        has_conflict = await check_walker_schedule_conflict(
+            profile["id"],
+            request["requested_date"],
+            request["requested_time"]
+        )
+        if has_conflict:
+            # Revert status
+            await db.service_requests.update_one(
+                {"id": request["id"]},
+                {"$set": {"status": "pending", "accepted_by": None, "accepted_at": None}}
+            )
+            raise HTTPException(
+                status_code=409, 
+                detail="Ya tienes una reserva a esta hora. No puedes aceptar dos paseos simultáneos."
+            )
     
     booking = Booking(
         owner_id=request["owner_id"],
@@ -2458,6 +2550,219 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# ============= CLOUDINARY UPLOAD ENDPOINT =============
+
+class ImageUploadResponse(BaseModel):
+    url: str
+    public_id: str
+    folder: str
+
+@api_router.post("/uploads/image", response_model=ImageUploadResponse)
+async def upload_image(
+    file: UploadFile = File(...),
+    folder: str = "general",
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Upload image to Cloudinary.
+    Folders: pets, licenses, payments, profiles, gallery
+    """
+    allowed_folders = ["pets", "licenses", "payments", "profiles", "gallery", "general"]
+    if folder not in allowed_folders:
+        raise HTTPException(status_code=400, detail=f"Folder debe ser uno de: {allowed_folders}")
+    
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Solo se permiten imágenes (JPEG, PNG, WebP, GIF)")
+    
+    # Max 5MB
+    contents = await file.read()
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="La imagen no puede superar 5MB")
+    
+    try:
+        result = cloudinary.uploader.upload(
+            contents,
+            folder=f"pettrust/{folder}",
+            resource_type="image",
+            public_id=f"{current_user['id']}_{uuid.uuid4().hex[:8]}"
+        )
+        return ImageUploadResponse(
+            url=result["secure_url"],
+            public_id=result["public_id"],
+            folder=folder
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al subir imagen: {str(e)}")
+
+# ============= MANUAL PAYMENT FLOW =============
+
+class ManualPaymentCreate(BaseModel):
+    booking_id: str
+    amount: float
+    payment_method: str = "nequi"  # nequi, daviplata, bancolombia
+    proof_image_url: str
+
+class ManualPayment(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: str
+    user_id: str
+    amount: float
+    payment_method: str
+    proof_image_url: str
+    status: str = "pending"  # pending, approved, rejected
+    admin_notes: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+@api_router.post("/payments/manual")
+async def create_manual_payment(
+    payment: ManualPaymentCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Submit manual payment proof for admin approval"""
+    # Verify booking exists
+    booking = await db.bookings.find_one({"id": payment.booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    if booking["owner_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    manual_payment = ManualPayment(
+        booking_id=payment.booking_id,
+        user_id=current_user["id"],
+        amount=payment.amount,
+        payment_method=payment.payment_method,
+        proof_image_url=payment.proof_image_url
+    )
+    
+    await db.manual_payments.insert_one(manual_payment.model_dump())
+    
+    # Create notification for admin
+    admin_notification = Notification(
+        user_id="admin",
+        type="manual_payment",
+        title="Nuevo Pago Manual",
+        message=f"El usuario {current_user['name']} ha subido un comprobante de pago por ${payment.amount:,.0f}",
+        data={"payment_id": manual_payment.id, "booking_id": payment.booking_id}
+    )
+    await db.notifications.insert_one(admin_notification.model_dump())
+    
+    return {"message": "Comprobante enviado para revisión", "payment_id": manual_payment.id}
+
+@api_router.get("/admin/payments/pending")
+async def get_pending_payments(current_user: dict = Depends(get_current_user)):
+    """Get all pending manual payments (Admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    
+    payments = await db.manual_payments.find({"status": "pending"}).to_list(100)
+    for p in payments:
+        p.pop("_id", None)
+    return payments
+
+@api_router.patch("/admin/payments/{payment_id}/review")
+async def review_manual_payment(
+    payment_id: str,
+    action: str,
+    notes: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Approve or reject manual payment (Admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    
+    if action not in ["approve", "reject"]:
+        raise HTTPException(status_code=400, detail="Action debe ser 'approve' o 'reject'")
+    
+    payment = await db.manual_payments.find_one({"id": payment_id})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Pago no encontrado")
+    
+    new_status = "approved" if action == "approve" else "rejected"
+    await db.manual_payments.update_one(
+        {"id": payment_id},
+        {"$set": {
+            "status": new_status,
+            "admin_notes": notes,
+            "reviewed_by": current_user["id"],
+            "reviewed_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Update booking payment status if approved
+    if action == "approve":
+        await db.bookings.update_one(
+            {"id": payment["booking_id"]},
+            {"$set": {"payment_status": "paid"}}
+        )
+    
+    # Notify user
+    user_notification = Notification(
+        user_id=payment["user_id"],
+        type="payment_reviewed",
+        title="Pago Revisado",
+        message=f"Tu pago ha sido {'aprobado' if action == 'approve' else 'rechazado'}",
+        data={"payment_id": payment_id, "status": new_status}
+    )
+    await db.notifications.insert_one(user_notification.model_dump())
+    
+    return {"message": f"Pago {new_status}", "payment_id": payment_id}
+
+# ============= WALKER SCHEDULE CONFLICT CHECK =============
+
+async def check_walker_schedule_conflict(walker_id: str, date: str, time: str) -> bool:
+    """Check if walker has a booking at the same time"""
+    existing = await db.bookings.find_one({
+        "provider_id": walker_id,
+        "service_type": "walker",
+        "date": date,
+        "time": time,
+        "status": {"$in": ["confirmed", "in_progress"]}
+    })
+    return existing is not None
+
+# ============= ADMIN USER SEED =============
+
+@api_router.post("/admin/seed")
+async def seed_admin_user(secret_key: str):
+    """
+    Create an admin user (protected by secret key).
+    This should only be called once during initial setup.
+    """
+    if secret_key != os.environ.get("SECRET_KEY", ""):
+        raise HTTPException(status_code=403, detail="Clave secreta inválida")
+    
+    # Check if admin already exists
+    existing = await db.users.find_one({"role": "admin"})
+    if existing:
+        return {"message": "Admin ya existe", "email": existing["email"]}
+    
+    admin_email = "admin@pettrust.co"
+    admin_password = hash_password("PetTrust2025!")
+    
+    admin_user = User(
+        email=admin_email,
+        name="Administrador PetTrust",
+        role="admin",
+        phone="+573001234567"
+    )
+    admin_data = admin_user.model_dump()
+    admin_data["password"] = admin_password
+    
+    await db.users.insert_one(admin_data)
+    
+    return {
+        "message": "Admin creado exitosamente",
+        "email": admin_email,
+        "password": "PetTrust2025!",
+        "note": "Por favor cambia esta contraseña inmediatamente"
+    }
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

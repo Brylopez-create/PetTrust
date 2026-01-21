@@ -141,7 +141,7 @@ const ReviewForm = ({ isOpen, onClose, booking, onReviewSubmitted }) => {
             <Button
               type="submit"
               disabled={submitting}
-              className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full"
+              className="flex-1 bg-[#78C494] hover:bg-[#28B463] text-white rounded-full"
               data-testid="submit-review-btn"
             >
               {submitting ? (

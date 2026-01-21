@@ -98,7 +98,7 @@ const Explore = () => {
               <span className="text-stone-500 text-sm">/paseo</span>
             </div>
             <Button
-              className="bg-emerald-400 text-white hover:bg-emerald-500 rounded-full"
+              className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full"
               onClick={(e) => {
                 e.stopPropagation();
                 navigate(`/paseadores/${walker.id}`);
@@ -168,7 +168,7 @@ const Explore = () => {
               <span className="text-stone-500 text-sm">/día</span>
             </div>
             <Button
-              className="bg-emerald-400 text-white hover:bg-emerald-500 rounded-full"
+              className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full"
               onClick={(e) => {
                 e.stopPropagation();
                 navigate(`/guarderias/${daycare.id}`);
@@ -246,7 +246,7 @@ const Explore = () => {
               <span className="text-stone-500 text-xs block">/consulta</span>
             </div>
             <Button
-              className="bg-emerald-400 text-white hover:bg-emerald-500 rounded-full text-sm h-9"
+              className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full text-sm h-9"
               onClick={(e) => {
                 e.stopPropagation();
                 navigate(`/veterinarios/${vet.id}`);
@@ -296,7 +296,7 @@ const Explore = () => {
           <TabsContent value="walkers">
             {loading ? (
               <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-400 border-t-transparent mx-auto"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#28B463]-400 border-t-transparent mx-auto"></div>
               </div>
             ) : walkers.length === 0 ? (
               <div className="text-center py-12">
@@ -312,7 +312,7 @@ const Explore = () => {
           <TabsContent value="daycares">
             {loading ? (
               <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-400 border-t-transparent mx-auto"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#28B463]-400 border-t-transparent mx-auto"></div>
               </div>
             ) : daycares.length === 0 ? (
               <div className="text-center py-12">
@@ -328,7 +328,7 @@ const Explore = () => {
           <TabsContent value="vets">
             {loading ? (
               <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-400 border-t-transparent mx-auto"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#28B463]-400 border-t-transparent mx-auto"></div>
               </div>
             ) : vets.length === 0 ? (
               <div className="text-center py-12">

@@ -113,7 +113,7 @@ const PhotoGallery = ({
                 setUploadType('profile');
                 setShowUploadDialog(true);
               }}
-              className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-emerald-600 transition-colors"
+              className="absolute -bottom-2 -right-2 w-10 h-10 bg-[#78C494] text-white rounded-full flex items-center justify-center shadow-lg hover:bg-[#28B463] transition-colors"
               data-testid="change-profile-photo-btn"
             >
               <Camera className="w-5 h-5" />
@@ -188,11 +188,11 @@ const PhotoGallery = ({
           <div className="space-y-4">
             <div 
               onClick={() => !uploading && fileInputRef.current?.click()}
-              className={`border-2 border-dashed border-stone-200 rounded-2xl p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`border-2 border-dashed border-stone-200 rounded-2xl p-8 text-center cursor-pointer hover:border-[#28B463]-400 hover:bg-emerald-50 transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {uploading ? (
                 <>
-                  <Loader2 className="w-10 h-10 text-emerald-500 mx-auto mb-3 animate-spin" />
+                  <Loader2 className="w-10 h-10 text-[#28B463] mx-auto mb-3 animate-spin" />
                   <p className="text-stone-600">Subiendo foto...</p>
                 </>
               ) : (

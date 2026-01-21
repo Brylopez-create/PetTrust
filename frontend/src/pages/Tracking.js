@@ -56,7 +56,7 @@ const Tracking = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-400 border-t-transparent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#28B463]-400 border-t-transparent"></div>
       </div>
     );
   }
@@ -82,14 +82,14 @@ const Tracking = () => {
             <Card className="rounded-3xl border-stone-200 overflow-hidden" data-testid="tracking-map-card">
               <CardHeader className="bg-gradient-to-r from-emerald-50 to-stone-50">
                 <CardTitle className="font-heading flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-emerald-600" />
+                  <MapPin className="w-5 h-5 text-[#28B463]" />
                   Rastreo en Vivo
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="aspect-video bg-gradient-to-br from-emerald-100 via-sky-100 to-stone-100 relative overflow-hidden">
                   <div 
-                    className="absolute w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg transition-all duration-1000 ease-in-out animate-pulse"
+                    className="absolute w-12 h-12 bg-[#78C494] rounded-full flex items-center justify-center shadow-lg transition-all duration-1000 ease-in-out animate-pulse"
                     style={{
                       left: `${((currentLocation.lng + 74.0621) / 0.02) * 100}%`,
                       top: `${((4.6951 - currentLocation.lat) / 0.02) * 100}%`,
@@ -114,7 +114,7 @@ const Tracking = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                          <Activity className="w-5 h-5 text-emerald-600" />
+                          <Activity className="w-5 h-5 text-[#28B463]" />
                         </div>
                         <div>
                           <div className="text-sm font-semibold text-stone-900">Paseo en Progreso</div>
@@ -191,7 +191,7 @@ const Tracking = () => {
 
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Activity className="w-4 h-4 text-emerald-600" />
+                    <Activity className="w-4 h-4 text-[#28B463]" />
                   </div>
                   <div>
                     <div className="font-semibold text-stone-900 text-sm">Historial Completo</div>

@@ -93,7 +93,7 @@ const Home = () => {
                 </div>
                 <Button
                   type="submit"
-                  className="bg-emerald-400 text-white hover:bg-emerald-500 rounded-full px-8 shadow-lg shadow-emerald-100"
+                  className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full px-8 shadow-lg shadow-emerald-100"
                   data-testid="search-submit-btn"
                 >
                   Buscar
@@ -138,7 +138,7 @@ const Home = () => {
             {features.map((feature, index) => (
               <Card key={index} className="rounded-3xl border-stone-100 hover:shadow-lg transition-shadow" data-testid={`feature-card-${index}`}>
                 <CardContent className="p-6">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-4">
+                  <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-[#28B463] mb-4">
                     {feature.icon}
                   </div>
                   <h3 className="font-heading font-bold text-lg text-stone-900 mb-2">{feature.title}</h3>
@@ -197,7 +197,7 @@ const Home = () => {
             </p>
             <Button
               onClick={() => navigate('/explorar')}
-              className="bg-white text-emerald-600 hover:bg-stone-50 rounded-full px-8 py-6 text-lg font-semibold shadow-xl"
+              className="bg-white text-[#28B463] hover:bg-stone-50 rounded-full px-8 py-6 text-lg font-semibold shadow-xl"
               data-testid="cta-explore-btn"
             >
               Explorar Cuidadores
