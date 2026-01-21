@@ -45,12 +45,13 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 origins = [
     "http://localhost:3000",
     "https://pettrust.vercel.app",
+    "https://pettrust-production.up.railway.app",
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -2767,6 +2768,8 @@ async def seed_admin_user(secret_key: str):
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn

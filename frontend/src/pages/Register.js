@@ -38,11 +38,15 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-stone-50 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center px-4 py-12">
       <Card className="w-full max-w-md rounded-3xl border-stone-200 shadow-xl">
         <CardHeader className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-white text-3xl">🐾</span>
+          <div className="mb-4 flex flex-col items-center">
+            <img src="/logo-pettrust.png" alt="PetTrust Logo" className="w-20 h-20 rounded-full object-cover mb-2" />
+            <div className="flex flex-col items-center">
+              <span className="text-xl font-heading font-bold text-[#0F4C75]">PetTrust</span>
+              <span className="text-sm text-[#28B463] font-medium -mt-1">Bogotá</span>
+            </div>
           </div>
           <CardTitle className="text-2xl font-heading font-bold text-stone-900">
             Crear Cuenta
@@ -127,7 +131,7 @@ const Register = () => {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-[#28B463] text-white hover:bg-[#78C494] rounded-full text-lg font-semibold shadow-lg shadow-emerald-100"
+              className="w-full h-12 bg-[#0F4C75] text-white hover:bg-[#368DD1] rounded-full text-lg font-semibold shadow-lg shadow-blue-100"
               data-testid="register-submit-btn"
             >
               {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
@@ -136,7 +140,7 @@ const Register = () => {
 
           <div className="mt-6 text-center text-sm text-stone-600">
             ¿Ya tienes cuenta?{' '}
-            <Link to="/login" className="text-[#28B463] font-semibold hover:text-emerald-700" data-testid="go-to-login-link">
+            <Link to="/login" className="text-[#28B463] font-semibold hover:text-[#78C494]" data-testid="go-to-login-link">
               Inicia sesión aquí
             </Link>
           </div>
