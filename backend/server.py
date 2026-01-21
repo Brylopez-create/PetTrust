@@ -3035,7 +3035,7 @@ async def review_manual_payment(
     )
     return {"message": "Revisión de pago completada", "status": new_status}
 
-@api_router.post(/dmin/seed/)
+@api_router.post("admin/seed/")
 async def seed_admin_user(secret_key: str):
     if secret_key != os.environ.get("SECRET_KEY", "demo-secret-key-pettrust-bogota-2025"):
         raise HTTPException(status_code=403, detail="Clave secreta inválida")
