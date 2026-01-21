@@ -57,21 +57,37 @@ cloudinary.config(
     secure=True
 )
 
-# CORS Configuration
+# Origins for CORS
 allowed_origins_raw = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,https://pettrust.vercel.app,https://pettrust-production.up.railway.app")
 origins = [o.strip() for o in allowed_origins_raw.split(",")]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+async def upload_image_internal(data_or_file: Any, folder: str, user_id: str) -> str:
+    """Helper to upload either bytes, UploadFile, or Base64 string to Cloudinary"""
+    try:
+        # If it's a base64 string
+        if isinstance(data_or_file, str) and data_or_file.startswith("data:image"):
+            # Extract base64 part
+            header, encoded = data_or_file.split(",", 1)
+            data_or_file = base64.b64decode(encoded)
+        
+        result = cloudinary.uploader.upload(
+            data_or_file,
+            folder=f"pettrust/{folder}",
+            resource_type="image",
+            public_id=f"{user_id}_{uuid.uuid4().hex[:8]}"
+        )
+        return result["secure_url"]
+    except Exception as e:
+        logging.error(f"Cloudinary upload error: {e}")
+        return None
+
 
 api_router = APIRouter(prefix="/api")
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'demo-secret-key-pettrust-bogota-2025')
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    logging.warning("SECRET_KEY not found in environment, using fallback for development ONLY")
+    SECRET_KEY = 'demo-secret-key-pettrust-bogota-2025'
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
@@ -267,6 +283,7 @@ class ProviderProfileUpdate(BaseModel):
     home_visit_available: Optional[bool] = None
     pickup_service: Optional[bool] = None
     pickup_price: Optional[float] = None
+    professional_license: Optional[str] = None
 
 class Pet(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -782,6 +799,17 @@ async def create_vet(vet_data: VetCreate, current_user: dict = Depends(get_curre
     if existing:
         raise HTTPException(status_code=400, detail="Ya tienes un perfil veterinario")
     
+    # Process images if they are base64
+    if vet_data.license_url and vet_data.license_url.startswith("data:"):
+        uploaded_url = await upload_image_internal(vet_data.license_url, "licenses", current_user["id"])
+        if uploaded_url:
+            vet_data.license_url = uploaded_url
+
+    if vet_data.profile_image and vet_data.profile_image.startswith("data:"):
+        uploaded_url = await upload_image_internal(vet_data.profile_image, "profiles", current_user["id"])
+        if uploaded_url:
+            vet_data.profile_image = uploaded_url
+
     vet = VetProfile(
         user_id=current_user["id"],
         name=current_user["name"],
@@ -835,6 +863,12 @@ async def upload_vet_document(vet_id: str, document: str, current_user: dict = D
 
 @api_router.post("/pets", response_model=Pet)
 async def create_pet(pet_data: PetCreate, current_user: dict = Depends(get_current_user)):
+    # Process pet photo if it is base64
+    if pet_data.photo and pet_data.photo.startswith("data:"):
+        uploaded_url = await upload_image_internal(pet_data.photo, "pets", current_user["id"])
+        if uploaded_url:
+            pet_data.photo = uploaded_url
+            
     pet = Pet(owner_id=current_user["id"], **pet_data.model_dump())
     await db.pets.insert_one(pet.model_dump())
     return pet
@@ -2864,12 +2898,15 @@ async def seed_admin_user(secret_key: str):
     
     await db.users.insert_one(admin_data)
     
-    return {
-        "message": "Admin creado exitosamente",
-        "email": admin_email,
-        "password": "PetTrust2025!",
-        "note": "Por favor cambia esta contraseña inmediatamente"
-    }
+    return {"message": "Admin creado exitosamente", "email": admin_email}
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
