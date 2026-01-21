@@ -352,8 +352,12 @@ const Dashboard = () => {
                   <Card key={pet.id} className="rounded-3xl border-stone-200" data-testid={`pet-card-${pet.id}`}>
                     <CardContent className="p-6">
                       <div className="text-center mb-4">
-                        <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-stone-100 rounded-full mx-auto flex items-center justify-center text-4xl mb-3">
-                          🐶
+                        <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-stone-100 rounded-full mx-auto flex items-center justify-center overflow-hidden mb-3">
+                          {pet.photo ? (
+                            <img src={pet.photo} alt={pet.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-4xl">🐶</span>
+                          )}
                         </div>
                         <h3 className="text-xl font-heading font-bold text-stone-900 mb-1">{pet.name}</h3>
                         <p className="text-stone-600 text-sm">{pet.breed}</p>

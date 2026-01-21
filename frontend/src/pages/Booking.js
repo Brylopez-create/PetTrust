@@ -32,7 +32,13 @@ const Booking = () => {
 
   const fetchService = async () => {
     try {
-      const endpoint = type === 'walker' ? 'walkers' : 'daycares';
+      let endpoint;
+      if (type === 'walker') endpoint = 'walkers';
+      else if (type === 'guarderia') endpoint = 'daycares';
+      else if (type === 'daycare') endpoint = 'daycares';
+      else if (type === 'veterinario') endpoint = 'vets';
+      else endpoint = 'vets'; // fallback for 'vet' or other aliases
+
       const response = await axios.get(`${API}/${endpoint}/${id}`);
       setService(response.data);
     } catch (error) {
@@ -60,13 +66,18 @@ const Booking = () => {
     setProcessing(true);
 
     try {
+      let price;
+      if (type === 'walker') price = service.price_per_walk;
+      else if (type === 'daycare' || type === 'guarderia') price = service.price_per_day;
+      else price = service.rates?.consultation || 0;
+
       const bookingData = {
         pet_id: formData.pet_id,
         service_type: type,
         service_id: id,
         date: formData.date,
         time: formData.time,
-        price: type === 'walker' ? service.price_per_walk : service.price_per_day
+        price: price
       };
 
       const response = await axios.post(`${API}/bookings`, bookingData);
@@ -172,7 +183,7 @@ const Booking = () => {
                     </div>
                   </div>
 
-                  {type === 'walker' && (
+                  {(type === 'walker' || type === 'veterinario' || type === 'vet') && (
                     <div>
                       <Label htmlFor="time">Hora</Label>
                       <Select value={formData.time} onValueChange={(value) => setFormData({ ...formData, time: value })}>
@@ -227,7 +238,7 @@ const Booking = () => {
                 <div>
                   <div className="text-sm text-stone-500 mb-1">Tipo</div>
                   <div className="font-semibold text-stone-900">
-                    {type === 'walker' ? 'Paseo' : 'Guardería'}
+                    {type === 'walker' ? 'Paseo' : (type === 'daycare' || type === 'guarderia' ? 'Guardería' : 'Veterinaria')}
                   </div>
                 </div>
 
@@ -235,12 +246,12 @@ const Booking = () => {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-stone-600">Subtotal</span>
                     <span className="font-semibold text-stone-900">
-                      ${(type === 'walker' ? service.price_per_walk : service.price_per_day).toLocaleString()}
+                      ${(type === 'walker' ? service.price_per_walk : (service.price_per_day || service.rates?.consultation || 0)).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-lg font-bold text-stone-900 pt-2 border-t border-stone-200">
                     <span>Total</span>
-                    <span>${(type === 'walker' ? service.price_per_walk : service.price_per_day).toLocaleString()}</span>
+                    <span>${(type === 'walker' ? service.price_per_walk : (service.price_per_day || service.rates?.consultation || 0)).toLocaleString()}</span>
                   </div>
                 </div>
               </CardContent>

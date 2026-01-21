@@ -180,7 +180,7 @@ class WalkerProfile(BaseModel):
     capacity_max: int = 4
     capacity_current: int = 0
     radius_km: float = 5.0
-    is_active: bool = False
+    is_active: bool = True
     working_hours: Optional[Dict[str, Any]] = None
     available_slots: List[str] = Field(default_factory=lambda: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"])
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -720,7 +720,7 @@ async def create_walker(walker_data: WalkerCreate, current_user: dict = Depends(
 
 @api_router.get("/walkers", response_model=List[WalkerProfile])
 async def get_walkers(location: Optional[str] = None, verified_only: bool = False):
-    query = {}
+    query = {"is_active": True}
     if location:
         query["location_name"] = {"$regex": location, "$options": "i"}
     if verified_only:
@@ -777,7 +777,7 @@ async def create_daycare(daycare_data: DaycareCreate, current_user: dict = Depen
 
 @api_router.get("/daycares", response_model=List[DaycareProfile])
 async def get_daycares(location: Optional[str] = None):
-    query = {}
+    query = {"is_active": True}
     if location:
         query["location_name"] = {"$regex": location, "$options": "i"}
     daycares = await db.daycares.find(query, {"_id": 0}).to_list(100)
@@ -823,7 +823,7 @@ async def create_vet(vet_data: VetCreate, current_user: dict = Depends(get_curre
 
 @api_router.get("/vets", response_model=List[VetProfile])
 async def get_vets(location: Optional[str] = None, verified_only: bool = False):
-    query = {}
+    query = {"is_active": True}
     if location:
         query["location_name"] = {"$regex": location, "$options": "i"}
     if verified_only:
@@ -884,7 +884,13 @@ async def create_booking(booking_data: BookingCreate, current_user: dict = Depen
     if not pet:
         raise HTTPException(status_code=404, detail="Mascota no encontrada")
     
-    collection = "walkers" if booking_data.service_type == "walker" else "daycares"
+    if booking_data.service_type == "walker":
+        collection = "walkers"
+    elif booking_data.service_type == "daycare":
+        collection = "daycares"
+    else:
+        collection = "vets"
+        
     service = await db[collection].find_one({"id": booking_data.service_id}, {"_id": 0})
     
     # Enforce availability check
@@ -1417,7 +1423,12 @@ async def check_availability(
     time: Optional[str] = None
 ):
     """Check if a provider has availability for a specific date/time"""
-    collection = "walkers" if service_type == "walker" else "daycares"
+    if service_type == "walker":
+        collection = "walkers"
+    elif service_type == "daycare":
+        collection = "daycares"
+    else:
+        collection = "vets"
     provider = await db[collection].find_one({"id": service_id}, {"_id": 0})
     
     if not provider:
@@ -1430,7 +1441,17 @@ async def check_availability(
             "capacity_remaining": 0
         }
     
+    # Check if the requested time is within provider's working hours/slots
     if service_type == "walker":
+        available_slots = provider.get("available_slots", [])
+        if time not in available_slots:
+            return {
+                "available": False,
+                "reason": f"El horario {time} no está disponible para este paseador.",
+                "capacity_remaining": 0,
+                "next_available_slot": available_slots[0] if available_slots else None
+            }
+        
         bookings_count = await db.bookings.count_documents({
             "service_id": service_id,
             "date": date,
@@ -1440,12 +1461,10 @@ async def check_availability(
         capacity_max = provider.get("capacity_max", 4)
         capacity_remaining = capacity_max - bookings_count
         
-        available_slots = provider.get("available_slots", [])
         next_available = None
-        if time in available_slots:
-            idx = available_slots.index(time)
-            if idx + 1 < len(available_slots):
-                next_available = available_slots[idx + 1]
+        idx = available_slots.index(time)
+        if idx + 1 < len(available_slots):
+            next_available = available_slots[idx + 1]
         
     else:
         bookings_count = await db.bookings.count_documents({
