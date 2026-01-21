@@ -130,6 +130,7 @@ class UserRegister(BaseModel):
     name: str
     role: str = "owner"
     phone: Optional[str] = None
+    onboarding_token: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -398,6 +399,42 @@ class Incident(BaseModel):
     description: str
     status: str = "open"
     resolution: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class ProspectResponse(BaseModel):
+    question_id: str
+    answer: str
+    score: Optional[int] = 0
+
+class Prospect(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    email: str
+    whatsapp: str
+    city: str
+    type: str # expert | apprentice
+    experience_years: Optional[int] = 0
+    responses: List[ProspectResponse] = []
+    total_score: float = 0.0
+    status: str = "pending" # pending, in_review, approved, rejected
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    verification_token: Optional[str] = None
+
+class ProspectCreate(BaseModel):
+    name: str
+    email: str
+    whatsapp: str
+    city: str
+    type: str
+    experience_years: Optional[int] = 0
+    responses: List[ProspectResponse] = []
+
+class ProspectStatusUpdate(BaseModel):
+    status: str
+    notes: Optional[str] = None
+    scores: Optional[Dict[str, int]] = None
+
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class IncidentCreate(BaseModel):
@@ -671,11 +708,30 @@ async def register(user_data: UserRegister):
         raise HTTPException(status_code=400, detail="El email ya está registrado")
     
     hashed_pw = hash_password(user_data.password)
+    
+    role = user_data.role
+    phone = user_data.phone
+    
+    # Handle onboarding token
+    if user_data.onboarding_token:
+        prospect = await db.prospects.find_one({
+            "verification_token": user_data.onboarding_token, 
+            "status": "approved"
+        })
+        if prospect:
+            role = "walker"
+            phone = prospect.get("whatsapp", phone)
+            # Mark as activated
+            await db.prospects.update_one(
+                {"id": prospect["id"]}, 
+                {"$set": {"status": "activated"}}
+            )
+
     user = User(
         email=user_data.email,
         name=user_data.name,
-        role=user_data.role,
-        phone=user_data.phone
+        role=role,
+        phone=phone
     )
     user_dict = user.model_dump()
     user_dict["password"] = hashed_pw
@@ -699,6 +755,97 @@ async def login(credentials: UserLogin, request: Request):
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
+
+# ============= PROSPECT ENDPOINTS =============
+
+@api_router.post("/prospects", response_model=Prospect)
+async def create_prospect(prospect_data: ProspectCreate):
+    # Check if exists
+    existing = await db.prospects.find_one({"email": prospect_data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe una solicitud con este correo")
+    
+    # Automated knock-out check (example: years of experience must be >= 0)
+    # If they are expert and have 0 years, it might be a flag but not knock-out unless defined
+    
+    prospect = Prospect(
+        **prospect_data.model_dump()
+    )
+    
+    # Simple automated scoring based on responses if any
+    total_score = 0.0
+    if prospect.responses:
+        # Assuming score is sent from frontend for now or handled here
+        # For strictness, we'll calculate it later in the admin step, 
+        # but let's initialize it.
+        pass
+        
+    await db.prospects.insert_one(prospect.model_dump())
+    return prospect
+
+@api_router.get("/prospects/status/{email}")
+async def get_prospect_status(email: str):
+    prospect = await db.prospects.find_one({"email": email}, {"_id": 0, "status": 1, "created_at": 1, "name": 1})
+    if not prospect:
+        raise HTTPException(status_code=404, detail="No se encontró solicitud para este correo")
+    return prospect
+
+@api_router.get("/admin/prospects", response_model=List[Prospect])
+async def get_all_prospects(status: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No tienes permisos de administrador")
+    
+    query = {}
+    if status:
+        query["status"] = status
+        
+    prospects = await db.prospects.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return prospects
+
+@api_router.get("/auth/prospect-verify")
+async def verify_prospect_token(token: str):
+    prospect = await db.prospects.find_one({"verification_token": token, "status": "approved"}, {"_id": 0})
+    if not prospect:
+        raise HTTPException(status_code=400, detail="Token inválido o expirado")
+    return prospect
+
+@api_router.patch("/admin/prospects/{prospect_id}", response_model=Prospect)
+async def update_prospect_status(
+    prospect_id: str, 
+    update: ProspectStatusUpdate, 
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No tienes permisos de administrador")
+    
+    prospect = await db.prospects.find_one({"id": prospect_id})
+    if not prospect:
+        raise HTTPException(status_code=404, detail="Prospecto no encontrado")
+    
+    update_data = {"status": update.status}
+    if update.notes:
+        update_data["notes"] = update.notes
+    
+    if update.scores:
+        # Update response scores if provided
+        responses = prospect.get("responses", [])
+        total = 0
+        for r in responses:
+            if r["question_id"] in update.scores:
+                r["score"] = update.scores[r["question_id"]]
+            total += r.get("score", 0)
+        
+        update_data["responses"] = responses
+        update_data["total_score"] = total / len(responses) if responses else 0
+        
+    # If approved, generate token (mock)
+    if update.status == "approved":
+        update_data["verification_token"] = secrets.token_hex(16)
+        
+    await db.prospects.update_one({"id": prospect_id}, {"$set": update_data})
+    
+    updated = await db.prospects.find_one({"id": prospect_id}, {"_id": 0})
+    return updated
 
 @api_router.post("/walkers", response_model=WalkerProfile)
 async def create_walker(walker_data: WalkerCreate, current_user: dict = Depends(get_current_user)):
@@ -1289,7 +1436,8 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
         "total_walkers": total_walkers,
         "total_users": total_users,
         "completed_bookings": completed_bookings,
-        "pending_incidents": pending_incidents
+        "pending_incidents": pending_incidents,
+        "pending_prospects": await db.prospects.count_documents({"status": "pending"})
     }
 
 # ============= MATCHING & AVAILABILITY ENDPOINTS =============

@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from './ui/sheet';
 import { Badge } from './ui/badge';
-import { User, LogOut, LayoutDashboard, Shield, Menu, X, Search, Home, MessageCircle } from 'lucide-react';
+import { User, LogOut, LayoutDashboard, Shield, Menu, X, Search, Home, MessageCircle, Dog } from 'lucide-react';
 import SafetyCenter from './SafetyCenter';
 import ChatCenter from './ChatCenter';
 
@@ -61,9 +61,14 @@ const Navbar = () => {
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center space-x-8">
               {(!user || user.role === 'owner') && (
-                <Link to="/explorar" className="text-stone-700 hover:text-[#28B463] font-medium transition-colors">
-                  Explorar
-                </Link>
+                <>
+                  <Link to="/explorar" className="text-stone-700 hover:text-[#28B463] font-medium transition-colors">
+                    Explorar
+                  </Link>
+                  <Link to="/paseadores" className="text-[#28B463] hover:text-emerald-700 font-bold transition-colors" data-testid="walker-landing-link">
+                    Sé un Paseador {(!user) && <Badge variant="secondary" className="ml-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none">Nuevo</Badge>}
+                  </Link>
+                </>
               )}
               {user ? (
                 <>
@@ -172,16 +177,28 @@ const Navbar = () => {
                       </SheetClose>
 
                       {(!user || user.role === 'owner') && (
-                        <SheetClose asChild>
-                          <Link
-                            to="/explorar"
-                            className="flex items-center gap-3 p-3 rounded-xl hover:bg-stone-100 transition-colors"
-                            onClick={closeMobileMenu}
-                          >
-                            <Search className="w-5 h-5 text-stone-600" />
-                            <span className="font-medium text-stone-700">Explorar</span>
-                          </Link>
-                        </SheetClose>
+                        <>
+                          <SheetClose asChild>
+                            <Link
+                              to="/explorar"
+                              className="flex items-center gap-3 p-3 rounded-xl hover:bg-stone-100 transition-colors"
+                              onClick={closeMobileMenu}
+                            >
+                              <Search className="w-5 h-5 text-stone-600" />
+                              <span className="font-medium text-stone-700">Explorar</span>
+                            </Link>
+                          </SheetClose>
+                          <SheetClose asChild>
+                            <Link
+                              to="/paseadores"
+                              className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 text-[#28B463] hover:bg-emerald-100 transition-colors"
+                              onClick={closeMobileMenu}
+                            >
+                              <Dog className="w-5 h-5" />
+                              <span className="font-bold">Sé un Paseador</span>
+                            </Link>
+                          </SheetClose>
+                        </>
                       )}
 
                       {user ? (

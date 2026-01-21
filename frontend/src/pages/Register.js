@@ -1,5 +1,5 @@
-import React, { useState, useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useContext, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { API, AuthContext } from '../App';
 import { toast } from 'sonner';
@@ -11,15 +11,46 @@ import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 
 const Register = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useContext(AuthContext);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     phone: '',
-    role: 'owner'
+    role: 'owner',
+    onboarding_token: null
   });
   const [loading, setLoading] = useState(false);
+  const [isProspect, setIsProspect] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    if (token) {
+      fetchProspectData(token);
+    }
+  }, [location.search]);
+
+  const fetchProspectData = async (token) => {
+    try {
+      const response = await axios.get(`${API}/auth/prospect-verify`, { params: { token } });
+      const prospect = response.data;
+      setFormData(prev => ({
+        ...prev,
+        name: prospect.name,
+        email: prospect.email,
+        phone: prospect.whatsapp,
+        role: 'walker',
+        onboarding_token: token
+      }));
+      setIsProspect(true);
+      toast.success('¡Bienvenido! Completa tu registro como paseador');
+    } catch (error) {
+      console.error('Error fetching prospect data:', error);
+      toast.error('Token inválido o expirado. Por favor inicia tu pre-registro.');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,7 +80,7 @@ const Register = () => {
             </div>
           </div>
           <CardTitle className="text-2xl font-heading font-bold text-stone-900">
-            Crear Cuenta
+            {isProspect ? 'Finalizar Registro' : 'Crear Cuenta'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -64,6 +95,7 @@ const Register = () => {
                 className="mt-2 h-12 rounded-xl border-stone-200"
                 required
                 data-testid="register-name-input"
+                readOnly={isProspect}
               />
             </div>
 
@@ -77,6 +109,7 @@ const Register = () => {
                 className="mt-2 h-12 rounded-xl border-stone-200"
                 required
                 data-testid="register-email-input"
+                readOnly={isProspect}
               />
             </div>
 
@@ -95,7 +128,7 @@ const Register = () => {
             </div>
 
             <div>
-              <Label htmlFor="phone" className="text-stone-700">Teléfono (Opcional)</Label>
+              <Label htmlFor="phone" className="text-stone-700">Teléfono</Label>
               <Input
                 id="phone"
                 type="tel"
@@ -103,12 +136,18 @@ const Register = () => {
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="mt-2 h-12 rounded-xl border-stone-200"
                 data-testid="register-phone-input"
+                readOnly={isProspect}
               />
             </div>
 
             <div>
               <Label className="text-stone-700 mb-3 block">Tipo de Cuenta</Label>
-              <RadioGroup value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })} data-testid="role-radio-group">
+              <RadioGroup
+                value={formData.role}
+                onValueChange={(value) => setFormData({ ...formData, role: value })}
+                data-testid="role-radio-group"
+                disabled={isProspect}
+              >
                 <div className="flex items-center space-x-2 p-3 border border-stone-200 rounded-xl hover:bg-stone-50">
                   <RadioGroupItem value="owner" id="owner" data-testid="role-owner" />
                   <Label htmlFor="owner" className="cursor-pointer flex-1">Dueño de Mascota</Label>
@@ -134,7 +173,7 @@ const Register = () => {
               className="w-full h-12 bg-[#0F4C75] text-white hover:bg-[#368DD1] rounded-full text-lg font-semibold shadow-lg shadow-blue-100"
               data-testid="register-submit-btn"
             >
-              {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
+              {loading ? 'Creando cuenta...' : (isProspect ? 'Completar Registro' : 'Crear Cuenta')}
             </Button>
           </form>
 

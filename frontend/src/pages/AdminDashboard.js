@@ -16,6 +16,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [pendingVerifications, setPendingVerifications] = useState({ walkers: [], daycares: [] });
   const [pendingPayments, setPendingPayments] = useState([]);
+  const [prospects, setProspects] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,14 +30,16 @@ const AdminDashboard = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [statsRes, verificationsRes, paymentsRes] = await Promise.all([
+      const [statsRes, verificationsRes, paymentsRes, prospectsRes] = await Promise.all([
         axios.get(`${API}/admin/stats`),
         axios.get(`${API}/admin/pending-verifications`),
-        axios.get(`${API}/admin/payments/pending`)
+        axios.get(`${API}/admin/payments/pending`),
+        axios.get(`${API}/admin/prospects`)
       ]);
       setStats(statsRes.data);
       setPendingVerifications(verificationsRes.data);
       setPendingPayments(paymentsRes.data);
+      setProspects(prospectsRes.data);
     } catch (error) {
       console.error('Error fetching admin data:', error);
       toast.error('Error al cargar datos');
@@ -62,6 +65,16 @@ const AdminDashboard = () => {
       fetchData();
     } catch (error) {
       toast.error('Error al procesar el pago');
+    }
+  };
+
+  const handleUpdateProspect = async (prospectId, status) => {
+    try {
+      await axios.patch(`${API}/admin/prospects/${prospectId}`, { status });
+      toast.success(`Prospecto ${status === 'approved' ? 'aprobado' : 'actualizado'}`);
+      fetchData();
+    } catch (error) {
+      toast.error('Error al actualizar prospecto');
     }
   };
 
@@ -150,8 +163,9 @@ const AdminDashboard = () => {
           <CardContent>
             <Tabs defaultValue="walkers">
               <TabsList className="mb-6">
-                <TabsTrigger value="walkers">Paseadores ({pendingVerifications.walkers.length})</TabsTrigger>
+                <TabsTrigger value="walkers">Paseadores Activos ({pendingVerifications.walkers.length})</TabsTrigger>
                 <TabsTrigger value="daycares">Guarderías ({pendingVerifications.daycares.length})</TabsTrigger>
+                <TabsTrigger value="prospects">Prospectos (Nuevos: {prospects.filter(p => p.status === 'pending').length})</TabsTrigger>
                 <TabsTrigger value="payments">Pagos Manuales ({pendingPayments.length})</TabsTrigger>
               </TabsList>
 
@@ -236,6 +250,77 @@ const AdminDashboard = () => {
                             Aprobar
                           </Button>
                           <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 rounded-full flex-1">
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Rechazar
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="prospects">
+                {prospects.length === 0 ? (
+                  <p className="text-center text-stone-500 py-8">No hay prospectos registrados</p>
+                ) : (
+                  <div className="space-y-4">
+                    {prospects.map((prospect) => (
+                      <div key={prospect.id} className="border border-stone-200 rounded-2xl p-6 bg-white shadow-sm">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-heading font-bold text-lg text-stone-900">{prospect.name}</h3>
+                              <Badge variant={prospect.type === 'expert' ? 'default' : 'secondary'} className="rounded-full">
+                                {prospect.type === 'expert' ? 'Experto' : 'Aprendiz'}
+                              </Badge>
+                            </div>
+                            <p className="text-stone-500 text-sm">{prospect.email} • {prospect.whatsapp}</p>
+                            <p className="text-stone-400 text-xs mt-1">Ubicación: {prospect.city}</p>
+                          </div>
+                          <div className="mt-2 md:mt-0 flex flex-col items-end">
+                            <Badge className={`rounded-full ${prospect.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                                prospect.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                  'bg-amber-100 text-amber-700'
+                              }`}>
+                              {prospect.status === 'approved' ? 'Aprobado' :
+                                prospect.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                            </Badge>
+                            {prospect.total_score > 0 && (
+                              <p className="text-sm font-bold text-[#0F4C75] mt-1">Score: {prospect.total_score.toFixed(1)}/5</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {prospect.responses && prospect.responses.length > 0 && (
+                          <div className="bg-stone-50 rounded-xl p-4 mb-4">
+                            <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Respuestas de Validación</p>
+                            <div className="space-y-2">
+                              {prospect.responses.map((resp, idx) => (
+                                <div key={idx} className="flex justify-between items-center text-sm border-b border-stone-100 pb-1 last:border-0 last:pb-0">
+                                  <span className="text-stone-600 italic">"{resp.answer}"</span>
+                                  {resp.score > 0 && <Badge variant="outline" className="text-xs">{resp.score} pts</Badge>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex gap-3">
+                          <Button
+                            onClick={() => handleUpdateProspect(prospect.id, 'approved')}
+                            className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full flex-1"
+                            disabled={prospect.status === 'approved'}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            Aprobar Candidato
+                          </Button>
+                          <Button
+                            onClick={() => handleUpdateProspect(prospect.id, 'rejected')}
+                            variant="outline"
+                            className="border-red-200 text-red-600 hover:bg-red-50 rounded-full flex-1"
+                            disabled={prospect.status === 'rejected'}
+                          >
                             <XCircle className="w-4 h-4 mr-2" />
                             Rechazar
                           </Button>
