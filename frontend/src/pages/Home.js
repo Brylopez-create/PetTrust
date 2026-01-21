@@ -72,7 +72,7 @@ const Home = () => {
           <div className="text-center mb-12">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-bold text-stone-900 mb-6">
               Cuidadores de Confianza para
-              <span className="text-emerald-400"> Tu Familia Peluda</span>
+              <span className="text-[#28B463]"> Tu Familia Peluda</span>
             </h1>
             <p className="text-lg text-stone-600 max-w-2xl mx-auto mb-8">
               Paseadores certificados y guarderías premium en Bogotá. Seguro incluido, GPS en tiempo real y reportes de bienestar.
@@ -104,19 +104,19 @@ const Home = () => {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16">
             <div className="text-center">
-              <div className="text-3xl font-heading font-bold text-emerald-400">500+</div>
+              <div className="text-3xl font-heading font-bold text-[#28B463]">500+</div>
               <div className="text-sm text-stone-600">Cuidadores Certificados</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-heading font-bold text-emerald-400">10K+</div>
+              <div className="text-3xl font-heading font-bold text-[#28B463]">10K+</div>
               <div className="text-sm text-stone-600">Paseos Completados</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-heading font-bold text-emerald-400">4.9</div>
+              <div className="text-3xl font-heading font-bold text-[#28B463]">4.9</div>
               <div className="text-sm text-stone-600">Calificación Promedio</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-heading font-bold text-emerald-400">100%</div>
+              <div className="text-3xl font-heading font-bold text-[#28B463]">100%</div>
               <div className="text-sm text-stone-600">Seguro Incluido</div>
             </div>
           </div>
@@ -210,14 +210,15 @@ const Home = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-xl">🐾</span>
+              <img src="/logo-pettrust.png" alt="PetTrust Logo" className="w-10 h-10 rounded-full object-cover" />
+              <div className="flex flex-col">
+                <span className="text-xl font-heading font-bold text-white">PetTrust</span>
+                <span className="text-xs text-[#28B463]">Bogotá</span>
               </div>
-              <span className="text-xl font-heading font-bold text-white">PetTrust Bogotá</span>
             </div>
             <p className="text-sm mb-4">Cuidado premium para mascotas en Bogotá</p>
           </div>
-          
+
           <div className="flex flex-wrap justify-center gap-6 mb-6 text-sm">
             <a href="/privacidad.html" target="_blank" className="hover:text-emerald-400 transition-colors">
               Política de Privacidad
@@ -232,7 +233,7 @@ const Home = () => {
               WhatsApp
             </a>
           </div>
-          
+
           <p className="text-xs text-stone-400 text-center">
             © 2025 PetTrust Bogotá. Todos los derechos reservados.
           </p>

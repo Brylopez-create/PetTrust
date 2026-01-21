@@ -51,10 +51,11 @@ const Navbar = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#0F4C75] to-[#368DD1] rounded-full flex items-center justify-center border-2 border-[#28B463]">
-                <span className="text-white text-xl font-bold">🐾</span>
+              <img src="/logo-pettrust.png" alt="PetTrust Logo" className="w-10 h-10 rounded-full object-cover" />
+              <div className="flex flex-col">
+                <span className="text-xl font-heading font-bold text-[#0F4C75]">PetTrust</span>
+                <span className="text-xs text-[#28B463] -mt-1">Bogotá</span>
               </div>
-              <span className="text-xl font-heading font-bold text-[#0F4C75]">PetTrust</span>
             </Link>
 
             {/* Desktop Menu */}
@@ -133,10 +134,11 @@ const Navbar = () => {
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-stone-200">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
-                          <span className="text-white text-sm">🐾</span>
+                        <img src="/logo-pettrust.png" alt="PetTrust Logo" className="w-8 h-8 rounded-full object-cover" />
+                        <div className="flex flex-col">
+                          <span className="font-heading font-bold text-[#0F4C75]">PetTrust</span>
+                          <span className="text-xs text-[#28B463] -mt-0.5">Bogotá</span>
                         </div>
-                        <span className="font-heading font-bold text-stone-900">PetTrust</span>
                       </div>
                       <SheetClose asChild>
                         <Button size="sm" variant="ghost">
