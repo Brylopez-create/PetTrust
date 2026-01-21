@@ -15,6 +15,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [pendingVerifications, setPendingVerifications] = useState({ walkers: [], daycares: [] });
+  const [pendingPayments, setPendingPayments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,12 +29,14 @@ const AdminDashboard = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [statsRes, verificationsRes] = await Promise.all([
+      const [statsRes, verificationsRes, paymentsRes] = await Promise.all([
         axios.get(`${API}/admin/stats`),
-        axios.get(`${API}/admin/pending-verifications`)
+        axios.get(`${API}/admin/pending-verifications`),
+        axios.get(`${API}/admin/payments/pending`)
       ]);
       setStats(statsRes.data);
       setPendingVerifications(verificationsRes.data);
+      setPendingPayments(paymentsRes.data);
     } catch (error) {
       console.error('Error fetching admin data:', error);
       toast.error('Error al cargar datos');
@@ -49,6 +52,16 @@ const AdminDashboard = () => {
       fetchData();
     } catch (error) {
       toast.error('Error al procesar verificación');
+    }
+  };
+
+  const handleReviewPayment = async (paymentId, action) => {
+    try {
+      await axios.patch(`${API}/admin/payments/${paymentId}/review?action=${action}`);
+      toast.success(action === 'approve' ? 'Pago aprobado correlamente' : 'Pago rechazado');
+      fetchData();
+    } catch (error) {
+      toast.error('Error al procesar el pago');
     }
   };
 
@@ -139,6 +152,7 @@ const AdminDashboard = () => {
               <TabsList className="mb-6">
                 <TabsTrigger value="walkers">Paseadores ({pendingVerifications.walkers.length})</TabsTrigger>
                 <TabsTrigger value="daycares">Guarderías ({pendingVerifications.daycares.length})</TabsTrigger>
+                <TabsTrigger value="payments">Pagos Manuales ({pendingPayments.length})</TabsTrigger>
               </TabsList>
 
               <TabsContent value="walkers">
@@ -225,6 +239,62 @@ const AdminDashboard = () => {
                             <XCircle className="w-4 h-4 mr-2" />
                             Rechazar
                           </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="payments">
+                {pendingPayments.length === 0 ? (
+                  <p className="text-center text-stone-500 py-8">No hay pagos pendientes de revisión</p>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingPayments.map((payment) => (
+                      <div key={payment.id} className="border border-stone-200 rounded-2xl p-6">
+                        <div className="flex flex-col md:flex-row gap-6">
+                          <div className="w-full md:w-48 h-64 bg-stone-100 rounded-xl overflow-hidden cursor-pointer" onClick={() => window.open(payment.proof_image_url, '_blank')}>
+                            <img src={payment.proof_image_url} alt="Comprobante Nequi" className="w-full h-full object-contain" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex justify-between items-start mb-4">
+                              <div>
+                                <h3 className="font-heading font-bold text-lg text-stone-900">Pago Manual Nequi</h3>
+                                <p className="text-stone-500 text-sm">ID: {payment.id}</p>
+                              </div>
+                              <Badge className="bg-amber-100 text-amber-700">Pendiente</Badge>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                              <div className="bg-stone-50 p-3 rounded-xl">
+                                <div className="text-xs text-stone-500 mb-1">Monto</div>
+                                <div className="font-bold text-[#0F4C75]">${payment.amount.toLocaleString()}</div>
+                              </div>
+                              <div className="bg-stone-50 p-3 rounded-xl">
+                                <div className="text-xs text-stone-500 mb-1">Reserva</div>
+                                <div className="font-bold text-stone-700">{payment.booking_id}</div>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                              <Button
+                                onClick={() => handleReviewPayment(payment.id, 'approve')}
+                                className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full flex-1"
+                              >
+                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                Aprobar Pago
+                              </Button>
+                              <Button
+                                onClick={() => handleReviewPayment(payment.id, 'reject')}
+                                variant="outline"
+                                className="border-red-200 text-red-600 hover:bg-red-50 rounded-full flex-1"
+                              >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Rechazar
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ))}

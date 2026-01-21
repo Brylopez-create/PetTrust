@@ -29,6 +29,21 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# Startup Indexing
+@app.on_event("startup")
+async def setup_indices():
+    """Ensure database indices are created on startup"""
+    try:
+        # User ID index for fast lookups/login
+        await db.users.create_index("id", unique=True)
+        # Add index for provider search
+        await db.walkers.create_index([("location", "2dsphere")])
+        await db.daycares.create_index([("location", "2dsphere")])
+        await db.vets.create_index([("location", "2dsphere")])
+        logging.info("Database indices verified/created")
+    except Exception as e:
+        logging.error(f"Error creating indices: {e}")
+
 # Cloudinary Configuration
 cloudinary.config(
     cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
@@ -42,16 +57,14 @@ app = FastAPI()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-origins = [
-    "http://localhost:3000",
-    "https://pettrust.vercel.app",
-    "https://pettrust-production.up.railway.app",
-]
+# CORS Configuration
+allowed_origins_raw = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,https://pettrust.vercel.app,https://pettrust-production.up.railway.app")
+origins = [o.strip() for o in allowed_origins_raw.split(",")]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -238,6 +251,8 @@ class VetCreate(BaseModel):
     latitude: float
     longitude: float
     rates: Dict[str, float]
+    license_url: Optional[str] = None
+    profile_image: Optional[str] = None
 
 class ProviderProfileUpdate(BaseModel):
     bio: Optional[str] = None
@@ -271,6 +286,7 @@ class PetCreate(BaseModel):
     age: int
     weight: float
     special_needs: Optional[str] = None
+    photo: Optional[str] = None
 
 class Booking(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -769,7 +785,9 @@ async def create_vet(vet_data: VetCreate, current_user: dict = Depends(get_curre
     vet = VetProfile(
         user_id=current_user["id"],
         name=current_user["name"],
-        **vet_data.model_dump(exclude={"latitude", "longitude"}),
+        profile_image=vet_data.profile_image,
+        documents=[vet_data.license_url] if vet_data.license_url else [],
+        **vet_data.model_dump(exclude={"latitude", "longitude", "license_url", "profile_image"}),
         location=GeoJSONLocation(coordinates=[vet_data.longitude, vet_data.latitude])
     )
     await db.vets.insert_one(vet.model_dump())
@@ -2597,6 +2615,94 @@ async def upload_image(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al subir imagen: {str(e)}")
+
+
+# ============= PROVIDER UNIFIED ENDPOINTS =============
+
+@api_router.get("/providers/me/profile")
+async def get_my_provider_profile(current_user: dict = Depends(get_current_user)):
+    """Get the full profile for the current logged-in provider"""
+    role = current_user.get("role")
+    if role not in ["walker", "daycare", "vet"]:
+        raise HTTPException(status_code=403, detail="No eres un proveedor")
+    
+    collection_name = {
+        "walker": "walkers",
+        "daycare": "daycares",
+        "vet": "vets"
+    }[role]
+    
+    profile = await db[collection_name].find_one({"user_id": current_user["id"]}, {"_id": 0})
+    if not profile:
+        raise HTTPException(status_code=404, detail="Perfil de proveedor no encontrado")
+    return profile
+
+@api_router.patch("/providers/me/status")
+async def update_provider_status(
+    status_data: ProviderStatusUpdate, 
+    current_user: dict = Depends(get_current_user)
+):
+    """Toggle active status or update capacity/radius"""
+    role = current_user.get("role")
+    collection_name = {
+        "walker": "walkers",
+        "daycare": "daycares",
+        "vet": "vets"
+    }.get(role)
+    
+    if not collection_name:
+        raise HTTPException(status_code=403, detail="No autorizado")
+        
+    update_fields = {}
+    if status_data.is_active is not None:
+        update_fields["is_active"] = status_data.is_active
+    if status_data.capacity_max is not None:
+        # Daycares use capacity_total, others use capacity_max
+        field = "capacity_total" if role == "daycare" else "capacity_max"
+        update_fields[field] = status_data.capacity_max
+    if status_data.radius_km is not None:
+        update_fields["radius_km"] = status_data.radius_km
+        
+    if not update_fields:
+        return {"message": "Sin cambios"}
+        
+    await db[collection_name].update_one(
+        {"user_id": current_user["id"]},
+        {"$set": update_fields}
+    )
+    return {"message": "Estado actualizado", "updates": update_fields}
+
+@api_router.patch("/providers/me/profile")
+async def update_provider_profile(
+    profile_data: ProviderProfileUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update detailed profile fields (Bio, Rates, etc)"""
+    role = current_user.get("role")
+    collection_name = {
+        "walker": "walkers",
+        "daycare": "daycares",
+        "vet": "vets"
+    }.get(role)
+    
+    if not collection_name:
+        raise HTTPException(status_code=403, detail="No autorizado")
+        
+    data = profile_data.model_dump(exclude_unset=True)
+    
+    # Map fields correctly based on role
+    if role == "daycare":
+        if "bio" in data: data["description"] = data.pop("bio")
+        if "price_per_walk" in data: data["price_per_day"] = data.pop("price_per_walk")
+    
+    if not data:
+        return {"message": "Sin cambios"}
+        
+    await db[collection_name].update_one(
+        {"user_id": current_user["id"]},
+        {"$set": data}
+    )
+    return {"message": "Perfil actualizado", "data": data}
 
 # ============= MANUAL PAYMENT FLOW =============
 
