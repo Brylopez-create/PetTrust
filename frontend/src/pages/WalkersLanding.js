@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '../App';
 import { toast } from 'sonner';
@@ -82,9 +82,11 @@ const WalkersLanding = () => {
                                     Quiero ser Paseador
                                     <ArrowRight className="ml-2 w-5 h-5" />
                                 </Button>
-                                <Button variant="outline" className="h-14 px-8 rounded-full text-lg font-semibold border-stone-200">
-                                    Ver beneficios
-                                </Button>
+                                <Link to="/beneficios">
+                                    <Button variant="outline" className="h-14 px-8 rounded-full text-lg font-semibold border-stone-200">
+                                        Ver beneficios
+                                    </Button>
+                                </Link>
                             </div>
                         </div>
                         <div className="mt-12 lg:mt-0 relative">

@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext, API } from '../App';
 import { Button } from './ui/button';
@@ -13,6 +13,7 @@ import ChatCenter from './ChatCenter';
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const [showSafety, setShowSafety] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -65,9 +66,11 @@ const Navbar = () => {
                   <Link to="/explorar" className="text-stone-700 hover:text-[#28B463] font-medium transition-colors">
                     Explorar
                   </Link>
-                  <Link to="/paseadores" className="text-[#28B463] hover:text-emerald-700 font-bold transition-colors" data-testid="walker-landing-link">
-                    Sé un Paseador {(!user) && <Badge variant="secondary" className="ml-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none">Nuevo</Badge>}
-                  </Link>
+                  {(location.pathname === '/' || location.pathname === '/paseadores') && (
+                    <Link to="/paseadores" className="text-[#28B463] hover:text-emerald-700 font-bold transition-colors" data-testid="walker-landing-link">
+                      Sé un Paseador {(!user) && <Badge variant="secondary" className="ml-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none">Nuevo</Badge>}
+                    </Link>
+                  )}
                 </>
               )}
               {user ? (
@@ -188,16 +191,18 @@ const Navbar = () => {
                               <span className="font-medium text-stone-700">Explorar</span>
                             </Link>
                           </SheetClose>
-                          <SheetClose asChild>
-                            <Link
-                              to="/paseadores"
-                              className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 text-[#28B463] hover:bg-emerald-100 transition-colors"
-                              onClick={closeMobileMenu}
-                            >
-                              <Dog className="w-5 h-5" />
-                              <span className="font-bold">Sé un Paseador</span>
-                            </Link>
-                          </SheetClose>
+                          {(location.pathname === '/' || location.pathname === '/paseadores') && (
+                            <SheetClose asChild>
+                              <Link
+                                to="/paseadores"
+                                className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 text-[#28B463] hover:bg-emerald-100 transition-colors"
+                                onClick={closeMobileMenu}
+                              >
+                                <Dog className="w-5 h-5" />
+                                <span className="font-bold">Sé un Paseador</span>
+                              </Link>
+                            </SheetClose>
+                          )}
                         </>
                       )}
 

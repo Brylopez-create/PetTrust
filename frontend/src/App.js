@@ -16,6 +16,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import CreateProfile from './pages/CreateProfile';
 import WalkersLanding from './pages/WalkersLanding';
+import Benefits from './pages/Benefits';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
@@ -76,6 +77,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/paseadores" element={<WalkersLanding />} />
+          <Route path="/beneficios" element={<Benefits />} />
           <Route path="/explorar" element={!user || user.role === 'owner' ? <Explore /> : <Navigate to="/provider-dashboard" />} />
           <Route path="/paseadores/:id" element={<WalkerProfile />} />
           <Route path="/guarderias/:id" element={<DaycareProfile />} />
