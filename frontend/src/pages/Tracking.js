@@ -11,7 +11,27 @@ import {
   ArrowLeft, MapPin, Navigation, Clock, Activity, Dog,
   CheckCircle2, AlertCircle, Loader2, RefreshCw, Phone, Shield
 } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { PinGenerator, LiveGpsTracker } from '../components/WalkTracking';
+
+// Fix Leaflet default icon
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+  iconUrl: require('leaflet/dist/images/marker-icon.png'),
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+});
+
+// Component to center map on new location
+const RecenterAutomatically = ({ lat, lng }) => {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng]);
+  }, [lat, lng, map]);
+  return null;
+};
 
 const Tracking = () => {
   const { bookingId } = useParams();
@@ -156,66 +176,70 @@ const Tracking = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="aspect-video bg-gradient-to-br from-emerald-100 via-sky-100 to-stone-100 relative overflow-hidden">
-                  {/* Map with location marker */}
+                  {/* Live Map */}
                   {currentLocation ? (
-                    <div
-                      className="absolute w-12 h-12 bg-[#78C494] rounded-full flex items-center justify-center shadow-lg transition-all duration-1000 ease-in-out animate-pulse"
-                      style={{
-                        left: '50%',
-                        top: '40%',
-                        transform: 'translate(-50%, -50%)'
-                      }}
-                    >
-                      <Navigation className="w-6 h-6 text-white" />
+                    <div className="h-[400px] w-full z-0 relative">
+                      <MapContainer
+                        center={[currentLocation.lat, currentLocation.lng]}
+                        zoom={16}
+                        style={{ height: '100%', width: '100%' }}
+                        zoomControl={false}
+                      >
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <Marker position={[currentLocation.lat, currentLocation.lng]}>
+                          <Popup>
+                            <div className="text-center">
+                              <p className="font-bold mb-1">🐕 {booking.pet_name || 'Mascota'}</p>
+                              <p className="text-xs text-stone-500">Última act: {new Date().toLocaleTimeString()}</p>
+                            </div>
+                          </Popup>
+                        </Marker>
+                        <RecenterAutomatically lat={currentLocation.lat} lng={currentLocation.lng} />
+                      </MapContainer>
+
+                      {/* Overlay Status Badge */}
+                      <div className="absolute bottom-4 left-4 right-4 z-[1000]">
+                        <div className="bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-stone-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 ${statusInfo.color.split(' ')[0]} rounded-full flex items-center justify-center`}>
+                                <StatusIcon className={`w-5 h-5 ${statusInfo.color.split(' ')[1]}`} />
+                              </div>
+                              <div>
+                                <div className="text-sm font-semibold text-stone-900">
+                                  {booking.status === 'in_progress' ? 'Paseo en Progreso' :
+                                    booking.status === 'confirmed' ? 'Esperando Verificación' :
+                                      booking.status === 'completed' ? 'Paseo Finalizado' : 'Pendiente'}
+                                </div>
+                                <div className="text-xs text-stone-500 font-mono">
+                                  Lat: {currentLocation.lat.toFixed(5)}, Lng: {currentLocation.lng.toFixed(5)}
+                                </div>
+                              </div>
+                            </div>
+                            <Badge className={`${statusInfo.color} rounded-full`}>
+                              {statusInfo.label}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center text-stone-400">
-                        <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p>Esperando ubicación...</p>
+                    <div className="h-[400px] bg-stone-100 flex flex-col items-center justify-center text-stone-400">
+                      <div className="relative mb-4">
+                        <div className="absolute inset-0 bg-[#28B463] blur-2xl opacity-20 rounded-full animate-pulse"></div>
+                        <MapPin className="w-16 h-16 relative z-10 text-stone-300" />
                       </div>
+                      <p className="font-medium text-stone-500 mb-1">Esperando ubicación...</p>
+                      <p className="text-sm text-stone-400 max-w-xs text-center px-4">
+                        {booking.status === 'confirmed'
+                          ? 'El paseador debe iniciar el paseo usando el PIN'
+                          : 'Conectando con el GPS del paseador...'}
+                      </p>
                     </div>
                   )}
-
-                  {/* Grid pattern */}
-                  <div className="absolute inset-0 pointer-events-none">
-                    <svg className="w-full h-full opacity-20">
-                      <defs>
-                        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1" />
-                        </pattern>
-                      </defs>
-                      <rect width="100%" height="100%" fill="url(#grid)" />
-                    </svg>
-                  </div>
-
-                  {/* Status banner */}
-                  <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 ${statusInfo.color.split(' ')[0]} rounded-full flex items-center justify-center`}>
-                          <StatusIcon className={`w-5 h-5 ${statusInfo.color.split(' ')[1]}`} />
-                        </div>
-                        <div>
-                          <div className="text-sm font-semibold text-stone-900">
-                            {booking.status === 'in_progress' ? 'Paseo en Progreso' :
-                              booking.status === 'confirmed' ? 'Esperando Verificación' :
-                                booking.status === 'completed' ? 'Paseo Finalizado' : 'Pendiente'}
-                          </div>
-                          <div className="text-xs text-stone-500">
-                            {booking.status === 'in_progress' && currentLocation
-                              ? `Lat: ${currentLocation.lat?.toFixed(4)}, Lng: ${currentLocation.lng?.toFixed(4)}`
-                              : booking.status === 'confirmed'
-                                ? 'El paseador debe verificar el PIN'
-                                : 'Ubicación no disponible'}
-                          </div>
-                        </div>
-                      </div>
-                      <Badge className={`${statusInfo.color} rounded-full`}>
-                        {statusInfo.label}
-                      </Badge>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
