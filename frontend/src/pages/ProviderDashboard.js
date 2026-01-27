@@ -24,9 +24,9 @@ import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
 import { Textarea } from "../components/ui/textarea"
 import {
-  Inbox, Calendar, Settings, MapPin, Clock, DollarSign,
   CheckCircle, XCircle, AlertCircle, User, Dog, Loader2
 } from 'lucide-react';
+import { LiveGpsTracker } from '../components/WalkTracking';
 
 const AMENITIES_OPTIONS = [
   "Cámaras de seguridad", "Transporte", "Zonas verdes", "Piscina",
@@ -687,11 +687,8 @@ const ProviderDashboard = () => {
 
                       {/* GPS Status for In Progress */}
                       {booking.status === 'in_progress' && (
-                        <div className="mt-4 p-3 bg-emerald-100 rounded-xl flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-[#28B463] animate-pulse"></span>
-                          <span className="text-sm text-emerald-700 font-medium">
-                            GPS Activo - Transmitiendo ubicación
-                          </span>
+                        <div className="mt-4">
+                          <LiveGpsTracker booking={booking} isWalker={true} />
                         </div>
                       )}
                     </CardContent>
