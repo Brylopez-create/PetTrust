@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request
+﻿from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -318,10 +318,18 @@ class Booking(BaseModel):
     service_name: Optional[str] = None
     date: str
     time: Optional[str] = None
-    status: str = "pending"
+    status: str = "pending"  # pending, confirmed, in_progress, completed, cancelled
     price: float
-    payment_status: str = "pending"
+    payment_status: str = "pending"  # pending, pending_verification, paid, failed
     payment_id: Optional[str] = None
+    # PIN verification
+    verification_pin: Optional[str] = None
+    pin_generated_at: Optional[str] = None
+    pin_verified_at: Optional[str] = None
+    # GPS Tracking
+    gps_tracking_enabled: bool = False
+    walker_current_location: Optional[Dict[str, float]] = None
+    location_history: Optional[List[Dict]] = None
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
     requires_pickup: bool = False
@@ -333,6 +341,7 @@ class Booking(BaseModel):
     wompi_transaction_id: Optional[str] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+
 class BookingCreate(BaseModel):
     pet_id: str
     service_type: str
@@ -343,6 +352,17 @@ class BookingCreate(BaseModel):
     requires_pickup: bool = False
     pickup_address: Optional[str] = None
     pickup_coordinates: Optional[Dict[str, float]] = None
+
+class ManualPayment(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: str
+    user_id: str
+    amount: float
+    payment_method: str  # nequi, daviplata
+    proof_url: str
+    status: str = "pending"  # pending, approved, rejected
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class Review(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -1595,7 +1615,7 @@ async def check_availability(
     """Check if a provider has availability for a specific date/time"""
     if service_type == "walker":
         collection = "walkers"
-    elif service_type == "daycare":
+    elif service_type == "daycare" or service_type == "guarderia":
         collection = "daycares"
     else:
         collection = "vets"
@@ -1607,36 +1627,90 @@ async def check_availability(
     if not provider.get("is_active", False):
         return {
             "available": False,
-            "reason": "Proveedor no disponible",
+            "reason": "Este proveedor no está recibiendo solicitudes actualmente",
             "capacity_remaining": 0
         }
     
-    # Check if the requested time is within provider's working hours/slots
+    # For walkers, check time slots
     if service_type == "walker":
-        available_slots = provider.get("available_slots", [])
-        if time not in available_slots:
+        available_slots = provider.get("available_slots", ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"])
+        
+        # Normalize requested time to 24h format (HH:MM)
+        normalized_time = time
+        if time:
+            # Handle various formats: "6:00 PM", "18:00", "6:00", etc.
+            time_clean = time.strip().upper()
+            if "PM" in time_clean or "AM" in time_clean:
+                parts = time_clean.replace("PM", "").replace("AM", "").strip().split(":")
+                hour = int(parts[0])
+                minute = parts[1] if len(parts) > 1 else "00"
+                if "PM" in time_clean and hour < 12:
+                    hour += 12
+                elif "AM" in time_clean and hour == 12:
+                    hour = 0
+                normalized_time = f"{hour:02d}:{minute}"
+            else:
+                # Already in 24h format, just normalize
+                parts = time.split(":")
+                hour = int(parts[0])
+                minute = parts[1] if len(parts) > 1 else "00"
+                normalized_time = f"{hour:02d}:{minute}"
+        
+        # If no time specified or slots empty, check general capacity
+        if not normalized_time or len(available_slots) == 0:
+            bookings_count = await db.bookings.count_documents({
+                "service_id": service_id,
+                "date": date,
+                "status": {"$in": ["pending", "confirmed", "in_progress"]}
+            })
+            capacity_max = provider.get("capacity_max", 4) * len(available_slots if available_slots else [1])
+            capacity_remaining = max(0, capacity_max - bookings_count)
+            
             return {
-                "available": False,
-                "reason": f"El horario {time} no está disponible para este paseador.",
-                "capacity_remaining": 0,
-                "next_available_slot": available_slots[0] if available_slots else None
+                "available": capacity_remaining > 0,
+                "capacity_remaining": capacity_remaining,
+                "available_slots": available_slots,
+                "provider_name": provider.get("name", "")
             }
         
+        # Check if time is in available slots
+        if normalized_time not in available_slots:
+            return {
+                "available": False,
+                "reason": f"El horario {time} no está en los horarios del paseador. Disponible: {', '.join(available_slots)}",
+                "capacity_remaining": 0,
+                "next_available_slot": available_slots[0] if available_slots else None,
+                "available_slots": available_slots
+            }
+        
+        # Count bookings for this specific slot
         bookings_count = await db.bookings.count_documents({
             "service_id": service_id,
             "date": date,
-            "time": time,
+            "time": normalized_time,
             "status": {"$in": ["pending", "confirmed", "in_progress"]}
         })
         capacity_max = provider.get("capacity_max", 4)
         capacity_remaining = capacity_max - bookings_count
         
         next_available = None
-        idx = available_slots.index(time)
-        if idx + 1 < len(available_slots):
-            next_available = available_slots[idx + 1]
+        try:
+            idx = available_slots.index(normalized_time)
+            if idx + 1 < len(available_slots):
+                next_available = available_slots[idx + 1]
+        except ValueError:
+            pass
         
+        return {
+            "available": capacity_remaining > 0,
+            "capacity_remaining": capacity_remaining,
+            "next_available_slot": next_available,
+            "available_slots": available_slots,
+            "provider_name": provider.get("name", "")
+        }
+    
     else:
+        # Daycare or Vet - check daily capacity
         bookings_count = await db.bookings.count_documents({
             "service_id": service_id,
             "date": date,
@@ -1644,14 +1718,68 @@ async def check_availability(
         })
         capacity_max = provider.get("capacity_total", 20)
         capacity_remaining = capacity_max - bookings_count
-        next_available = None
+        
+        return {
+            "available": capacity_remaining > 0,
+            "capacity_remaining": capacity_remaining,
+            "next_available_slot": None,
+            "provider_name": provider.get("name", "")
+        }
+
+@api_router.get("/providers/{provider_type}/{provider_id}/slots")
+async def get_provider_slots(
+    provider_type: str,
+    provider_id: str,
+    date: Optional[str] = None
+):
+    """Get available slots for a provider on a specific date with capacity info"""
+    if provider_type == "walker":
+        collection = "walkers"
+    elif provider_type == "daycare" or provider_type == "guarderia":
+        collection = "daycares"
+    else:
+        collection = "vets"
+    
+    provider = await db[collection].find_one({"id": provider_id}, {"_id": 0})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    available_slots = provider.get("available_slots", ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"])
+    capacity_max = provider.get("capacity_max", 4)
+    
+    slots_with_capacity = []
+    
+    if date:
+        for slot in available_slots:
+            bookings_count = await db.bookings.count_documents({
+                "service_id": provider_id,
+                "date": date,
+                "time": slot,
+                "status": {"$in": ["pending", "confirmed", "in_progress"]}
+            })
+            remaining = capacity_max - bookings_count
+            slots_with_capacity.append({
+                "time": slot,
+                "capacity_remaining": remaining,
+                "available": remaining > 0
+            })
+    else:
+        for slot in available_slots:
+            slots_with_capacity.append({
+                "time": slot,
+                "capacity_remaining": capacity_max,
+                "available": True
+            })
     
     return {
-        "available": capacity_remaining > 0,
-        "capacity_remaining": capacity_remaining,
-        "next_available_slot": next_available,
-        "provider_name": provider.get("name", "")
+        "provider_id": provider_id,
+        "provider_name": provider.get("name", ""),
+        "is_active": provider.get("is_active", False),
+        "date": date,
+        "slots": slots_with_capacity,
+        "capacity_max_per_slot": capacity_max
     }
+
 
 # ============= SERVICE REQUESTS ENDPOINTS =============
 
@@ -2046,6 +2174,117 @@ async def get_provider_schedule(
         "capacity_used": capacity_used,
         "is_active": profile.get("is_active", False)
     }
+
+# ============= MANUAL PAYMENTS ENDPOINTS =============
+
+@api_router.post("/payments/submit")
+async def submit_manual_payment(
+    booking_id: str = Form(...),
+    amount: float = Form(...),
+    payment_method: str = Form(...),
+    proof: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    booking = await db.bookings.find_one({"id": booking_id, "owner_id": current_user["id"]}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+
+    # Upload proof to Cloudinary
+    proof_content = await proof.read()
+    if not proof_content:
+         raise HTTPException(status_code=400, detail="El archivo está vacío")
+         
+    # We need a helper that accepts bytes if upload_image_internal handles it, 
+    # checking upload_image_internal implementation:
+    # It takes data_or_file. If str and starts with data:image, decodes. 
+    # Cloudinary upload function handles bytes/file-like objects directly.
+    # So passing bytes should work.
+    
+    proof_url = await upload_image_internal(proof_content, "payments", current_user["id"])
+    
+    if not proof_url:
+        raise HTTPException(status_code=500, detail="Error subiendo comprobante")
+
+    payment = ManualPayment(
+        booking_id=booking_id,
+        user_id=current_user["id"],
+        amount=amount,
+        payment_method=payment_method,
+        proof_url=proof_url
+    )
+    
+    await db.manual_payments.insert_one(payment.model_dump())
+    
+    # Update booking status
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {"$set": {"status": "awaiting_approval", "payment_status": "pending_approval"}}
+    )
+    
+    return payment
+
+@api_router.get("/admin/payments/pending")
+async def get_pending_payments(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores")
+        
+    payments = await db.manual_payments.find({"status": "pending"}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    enriched = []
+    for p in payments:
+        booking = await db.bookings.find_one({"id": p["booking_id"]}, {"_id": 0})
+        if booking:
+            p["booking_details"] = {
+                "service_name": booking.get("service_name"),
+                "date": booking.get("date"),
+                "owner_name": booking.get("owner_name"),
+                "service_type": booking.get("service_type")
+            }
+        enriched.append(p)
+        
+    return enriched
+
+@api_router.patch("/admin/payments/{payment_id}/review")
+async def review_payment(
+    payment_id: str, 
+    body: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    # Expecting body: {"action": "approve" | "reject"}
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores")
+    
+    action = body.get("action")
+    
+    payment = await db.manual_payments.find_one({"id": payment_id})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Pago no encontrado")
+        
+    if action == "approve":
+        new_status = "approved"
+        booking_status = "confirmed"
+        payment_status = "paid"
+        
+        # Notify user/provider logic would go here
+        
+    elif action == "reject":
+        new_status = "rejected"
+        booking_status = "payment_rejected"
+        payment_status = "rejected"
+    else:
+         raise HTTPException(status_code=400, detail="Acción inválida")
+         
+    await db.manual_payments.update_one(
+        {"id": payment_id},
+        {"$set": {"status": new_status}}
+    )
+    
+    await db.bookings.update_one(
+        {"id": payment.get("booking_id")},
+        {"$set": {"status": booking_status, "payment_status": payment_status}}
+    )
+    
+    return {"message": f"Pago {new_status}", "status": new_status}
 
 # ============= WOMPI MOCK ENDPOINTS =============
 
@@ -2938,6 +3177,227 @@ async def update_provider_profile(
     )
     return {"message": "Perfil actualizado", "data": data}
 
+# ============= PIN VERIFICATION & GPS TRACKING =============
+
+import random
+
+@api_router.post("/bookings/{booking_id}/generate-pin")
+async def generate_verification_pin(
+    booking_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Owner generates a 6-digit PIN after payment is confirmed and walker is ready"""
+    booking = await db.bookings.find_one({"id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    if booking["owner_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Solo el dueño puede generar el PIN")
+    
+    if booking.get("payment_status") != "paid":
+        raise HTTPException(status_code=400, detail="El pago debe estar confirmado para generar el PIN")
+    
+    if booking.get("verification_pin"):
+        # Return existing PIN if already generated
+        return {
+            "pin": booking["verification_pin"],
+            "message": "PIN ya generado previamente",
+            "generated_at": booking.get("pin_generated_at")
+        }
+    
+    # Generate 6-digit PIN
+    pin = str(random.randint(100000, 999999))
+    
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {"$set": {
+            "verification_pin": pin,
+            "pin_generated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Notify walker that PIN is ready
+    notification = Notification(
+        user_id=booking["service_id"],
+        type="pin_ready",
+        title="PIN de Verificación Listo",
+        message=f"El dueño ha generado el PIN. Solicítalo cuando llegues para iniciar el paseo.",
+        data={"booking_id": booking_id}
+    )
+    await db.notifications.insert_one(notification.model_dump())
+    
+    return {
+        "pin": pin,
+        "message": "PIN generado. Compártelo con el paseador cuando llegue.",
+        "generated_at": datetime.now(timezone.utc).isoformat()
+    }
+
+@api_router.post("/bookings/{booking_id}/verify-pin")
+async def verify_pin_and_start(
+    booking_id: str,
+    pin: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Walker verifies PIN to start the walk with GPS tracking"""
+    booking = await db.bookings.find_one({"id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    # Check if walker is the provider
+    if booking["service_id"] != current_user.get("id") and current_user.get("role") != "admin":
+        # Also check by user_id in walkers collection
+        walker = await db.walkers.find_one({"user_id": current_user["id"]})
+        if not walker or walker["id"] != booking["service_id"]:
+            raise HTTPException(status_code=403, detail="Solo el paseador asignado puede verificar el PIN")
+    
+    if not booking.get("verification_pin"):
+        raise HTTPException(status_code=400, detail="El dueño aún no ha generado el PIN")
+    
+    if booking["verification_pin"] != pin:
+        return {"success": False, "message": "PIN incorrecto. Intenta de nuevo."}
+    
+    if booking.get("pin_verified_at"):
+        return {"success": True, "message": "PIN ya verificado. El paseo está en curso.", "already_started": True}
+    
+    # PIN verified - start the walk with GPS tracking
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {"$set": {
+            "status": "in_progress",
+            "pin_verified_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "gps_tracking_enabled": True,
+            "location_history": []
+        }}
+    )
+    
+    # Notify owner that walk has started
+    notification = Notification(
+        user_id=booking["owner_id"],
+        type="walk_started",
+        title="¡Paseo Iniciado!",
+        message=f"El paseador ha verificado el PIN. Ahora puedes seguir el paseo en tiempo real.",
+        data={"booking_id": booking_id}
+    )
+    await db.notifications.insert_one(notification.model_dump())
+    
+    return {
+        "success": True,
+        "message": "¡PIN verificado! El paseo ha iniciado. GPS activado.",
+        "started_at": datetime.now(timezone.utc).isoformat()
+    }
+
+class LocationUpdate(BaseModel):
+    lat: float
+    lng: float
+    accuracy: Optional[float] = None
+    speed: Optional[float] = None
+
+@api_router.post("/bookings/{booking_id}/update-location")
+async def update_walker_location(
+    booking_id: str,
+    location: LocationUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Walker updates their GPS location during the walk"""
+    booking = await db.bookings.find_one({"id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    if booking.get("status") != "in_progress":
+        raise HTTPException(status_code=400, detail="El paseo no está activo")
+    
+    if not booking.get("gps_tracking_enabled"):
+        raise HTTPException(status_code=400, detail="GPS tracking no está habilitado")
+    
+    location_entry = {
+        "lat": location.lat,
+        "lng": location.lng,
+        "accuracy": location.accuracy,
+        "speed": location.speed,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {
+            "$set": {"walker_current_location": {"lat": location.lat, "lng": location.lng}},
+            "$push": {"location_history": location_entry}
+        }
+    )
+    
+    return {"success": True, "location_recorded": True}
+
+@api_router.get("/bookings/{booking_id}/live-location")
+async def get_live_location(
+    booking_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Owner gets the current location of the walker"""
+    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    # Only owner or walker can see location
+    if booking["owner_id"] != current_user["id"]:
+        # Check if is the walker
+        walker = await db.walkers.find_one({"user_id": current_user["id"]})
+        if not walker or walker["id"] != booking["service_id"]:
+            raise HTTPException(status_code=403, detail="No autorizado")
+    
+    return {
+        "booking_id": booking_id,
+        "status": booking.get("status"),
+        "gps_tracking_enabled": booking.get("gps_tracking_enabled", False),
+        "current_location": booking.get("walker_current_location"),
+        "started_at": booking.get("started_at"),
+        "location_history": booking.get("location_history", [])[-20:]  # Last 20 points
+    }
+
+@api_router.post("/bookings/{booking_id}/complete")
+async def complete_walk(
+    booking_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Walker completes the walk"""
+    booking = await db.bookings.find_one({"id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    # Verify is the walker
+    walker = await db.walkers.find_one({"user_id": current_user["id"]})
+    if not walker or walker["id"] != booking["service_id"]:
+        if current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Solo el paseador puede completar el paseo")
+    
+    if booking.get("status") != "in_progress":
+        raise HTTPException(status_code=400, detail="El paseo no está en progreso")
+    
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {"$set": {
+            "status": "completed",
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "gps_tracking_enabled": False
+        }}
+    )
+    
+    # Notify owner
+    notification = Notification(
+        user_id=booking["owner_id"],
+        type="walk_completed",
+        title="¡Paseo Completado!",
+        message="El paseador ha finalizado el paseo. ¡No olvides calificar el servicio!",
+        data={"booking_id": booking_id}
+    )
+    await db.notifications.insert_one(notification.model_dump())
+    
+    return {
+        "success": True,
+        "message": "¡Paseo completado exitosamente!",
+        "completed_at": datetime.now(timezone.utc).isoformat()
+    }
+
 # ============= MANUAL PAYMENT FLOW =============
 
 class ManualPaymentCreate(BaseModel):
@@ -3024,26 +3484,154 @@ async def review_manual_payment(
     payment = await db.manual_payments.find_one({"id": payment_id})
     if not payment:
         raise HTTPException(status_code=404, detail="Pago no encontrado")
-
+    
     new_status = "approved" if action == "approve" else "rejected"
     await db.manual_payments.update_one(
         {"id": payment_id},
         {"$set": {
             "status": new_status,
-            "admin_notes": notes
+            "admin_notes": notes,
+            "reviewed_by": current_user["id"],
+            "reviewed_at": datetime.now(timezone.utc).isoformat()
         }}
     )
+    
+    # If approved, confirm the booking
+    if action == "approve":
+        await db.bookings.update_one(
+            {"id": payment["booking_id"]},
+            {"$set": {"status": "confirmed", "payment_status": "paid"}}
+        )
+        
+        # Notify user
+        booking = await db.bookings.find_one({"id": payment["booking_id"]})
+        if booking:
+            user_notification = Notification(
+                user_id=booking["owner_id"],
+                type="payment_approved",
+                title="¡Pago Confirmado!",
+                message="Tu pago ha sido verificado. El paseador ha sido notificado para iniciar el servicio.",
+                data={"booking_id": payment["booking_id"]}
+            )
+            await db.notifications.insert_one(user_notification.model_dump())
+            
+            # Notify provider
+            provider_notification = Notification(
+                user_id=booking["service_id"],
+                type="booking_confirmed",
+                title="Nueva Reserva Confirmada",
+                message=f"Tienes una reserva confirmada para {booking['date']} a las {booking.get('time', 'N/A')}. Puedes iniciar el servicio.",
+                data={"booking_id": payment["booking_id"]}
+            )
+            await db.notifications.insert_one(provider_notification.model_dump())
+    
     return {"message": "Revisión de pago completada", "status": new_status}
 
-@api_router.post("admin/seed/")
+# Alternative endpoint for frontend compatibility
+class RegisterManualPayment(BaseModel):
+    booking_id: str
+    amount: float
+    payment_method: str = "nequi"
+    proof_url: str
+
+@api_router.post("/payments/register_manual")
+async def register_manual_payment(
+    payment: RegisterManualPayment,
+    current_user: dict = Depends(get_current_user)
+):
+    """Register manual payment (alias for frontend compatibility)"""
+    # Verify booking exists
+    booking = await db.bookings.find_one({"id": payment.booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    if booking["owner_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    manual_payment = ManualPayment(
+        booking_id=payment.booking_id,
+        user_id=current_user["id"],
+        amount=payment.amount,
+        payment_method=payment.payment_method,
+        proof_image_url=payment.proof_url
+    )
+    
+    await db.manual_payments.insert_one(manual_payment.model_dump())
+    
+    # Update booking status to payment_pending
+    await db.bookings.update_one(
+        {"id": payment.booking_id},
+        {"$set": {"payment_status": "pending_verification"}}
+    )
+    
+    # Create notification for admin
+    admin_notification = Notification(
+        user_id="admin",
+        type="manual_payment",
+        title="Nuevo Pago Manual",
+        message=f"El usuario {current_user['name']} ha subido un comprobante de pago por ${payment.amount:,.0f}",
+        data={"payment_id": manual_payment.id, "booking_id": payment.booking_id}
+    )
+    await db.notifications.insert_one(admin_notification.model_dump())
+    
+    return {"message": "Comprobante enviado para revisión", "payment_id": manual_payment.id}
+
+@api_router.get("/admin/bookings/all")
+async def get_all_bookings(current_user: dict = Depends(get_current_user)):
+    """Get all bookings with payment info (Admin only)"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    
+    bookings = await db.bookings.find({}).sort("created_at", -1).to_list(200)
+    
+    # Enrich with payment info
+    for booking in bookings:
+        booking.pop("_id", None)
+        
+        # Get payment info
+        payment = await db.manual_payments.find_one({"booking_id": booking["id"]})
+        if payment:
+            booking["payment"] = {
+                "id": payment["id"],
+                "status": payment["status"],
+                "method": payment["payment_method"],
+                "proof_url": payment.get("proof_image_url"),
+                "amount": payment["amount"]
+            }
+        else:
+            booking["payment"] = None
+        
+        # Get owner info
+        owner = await db.users.find_one({"id": booking.get("owner_id")})
+        if owner:
+            booking["owner_name"] = owner.get("name", "Unknown")
+            booking["owner_phone"] = owner.get("phone", "")
+        
+        # Get pet info
+        pet = await db.pets.find_one({"id": booking.get("pet_id")})
+        if pet:
+            booking["pet_name"] = pet.get("name", "Unknown")
+    
+    return bookings
+
+
+@api_router.post("/admin/seed")
 async def seed_admin_user(secret_key: str):
+    """
+    Create an admin user (protected by secret key).
+    This should only be called once during initial setup.
+    """
     if secret_key != os.environ.get("SECRET_KEY", "demo-secret-key-pettrust-bogota-2025"):
         raise HTTPException(status_code=403, detail="Clave secreta inválida")
+    
+    # Check if admin already exists
     existing = await db.users.find_one({"role": "admin"})
     if existing:
         return {"message": "Admin ya existe", "email": existing["email"]}
+    
     admin_email = "admin@pettrust.co"
     admin_password = hash_password("PetTrust2025!")
+    
     admin_user = {
         "id": str(uuid.uuid4()),
         "email": admin_email,
@@ -3053,6 +3641,7 @@ async def seed_admin_user(secret_key: str):
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     admin_user["password"] = admin_password
+    
     await db.users.insert_one(admin_user)
     return {"message": "Admin creado exitosamente", "email": admin_email}
 

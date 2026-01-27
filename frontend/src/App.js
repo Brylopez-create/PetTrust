@@ -10,6 +10,7 @@ import VetProfile from './pages/VetProfile';
 import Dashboard from './pages/Dashboard';
 import ProviderDashboard from './pages/ProviderDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminPaymentDashboard from './pages/AdminPaymentDashboard';
 import Booking from './pages/Booking';
 import Tracking from './pages/Tracking';
 import Login from './pages/Login';
@@ -87,6 +88,7 @@ function App() {
           <Route path="/provider-dashboard" element={user ? <ProviderDashboard /> : <Navigate to="/login" />} />
           <Route path="/crear-perfil" element={user ? <CreateProfile /> : <Navigate to="/login" />} />
           <Route path="/admin" element={user ? <AdminDashboard /> : <Navigate to="/login" />} />
+          <Route path="/admin/payments" element={user ? <AdminPaymentDashboard /> : <Navigate to="/login" />} />
           <Route path="/tracking/:bookingId" element={user ? <Tracking /> : <Navigate to="/login" />} />
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
           <Route path="/registro" element={!user ? <Register /> : <Navigate to="/dashboard" />} />

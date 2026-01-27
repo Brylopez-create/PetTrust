@@ -38,6 +38,66 @@ const SPECIALTIES_OPTIONS = [
   "Oftalmología", "Fisioterapia", "Comportamiento", "Urgencias"
 ];
 
+// Inline PIN Verifier for dialog use
+const PinVerifierInline = ({ booking, onVerified }) => {
+  const [pin, setPin] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const verifyPin = async () => {
+    if (pin.length !== 6) {
+      toast.error('El PIN debe tener 6 dígitos');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        `${API}/bookings/${booking.id}/verify-pin`,
+        null,
+        { params: { pin } }
+      );
+
+      if (response.data.success) {
+        if (onVerified) onVerified();
+      } else {
+        toast.error(response.data.message);
+        setPin('');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al verificar');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 pt-4">
+      <Input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        maxLength={6}
+        placeholder="• • • • • •"
+        value={pin}
+        onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+        className="text-center text-3xl font-mono tracking-[0.5em] h-16"
+      />
+      <Button
+        onClick={verifyPin}
+        disabled={loading || pin.length !== 6}
+        className="w-full bg-[#28B463] hover:bg-[#78C494] text-white"
+      >
+        {loading ? (
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        ) : (
+          <CheckCircle className="w-4 h-4 mr-2" />
+        )}
+        Verificar e Iniciar Paseo
+      </Button>
+    </div>
+  );
+};
+
 const ProviderDashboard = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -499,6 +559,148 @@ const ProviderDashboard = () => {
             )}
           </TabsContent>
 
+          <TabsContent value="schedule">
+            {schedule.bookings.length === 0 ? (
+              <Card className="rounded-3xl border-stone-200">
+                <CardContent className="p-12 text-center">
+                  <Calendar className="w-16 h-16 text-stone-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-heading font-bold text-stone-900 mb-2">
+                    Sin reservas hoy
+                  </h3>
+                  <p className="text-stone-600">
+                    Tus próximas reservas aparecerán aquí.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4" data-testid="schedule-list">
+                {schedule.bookings.map((booking) => (
+                  <Card
+                    key={booking.id}
+                    className={`rounded-2xl border-2 ${booking.status === 'in_progress'
+                      ? 'border-[#28B463] bg-emerald-50/50'
+                      : booking.status === 'confirmed'
+                        ? 'border-sky-200'
+                        : 'border-stone-200'
+                      }`}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                          <div className="w-14 h-14 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center text-2xl">
+                            🐕
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-heading font-bold text-stone-900 text-lg">
+                                {booking.pet_name}
+                              </h3>
+                              <Badge className={`rounded-full text-xs ${booking.status === 'in_progress'
+                                ? 'bg-[#28B463] text-white'
+                                : booking.status === 'confirmed'
+                                  ? 'bg-sky-100 text-sky-700'
+                                  : 'bg-stone-100 text-stone-600'
+                                }`}>
+                                {booking.status === 'in_progress' ? 'En Progreso' :
+                                  booking.status === 'confirmed' ? 'Confirmado' : booking.status}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3 text-sm text-stone-600">
+                              <span className="flex items-center gap-1">
+                                <User className="w-3 h-3" />
+                                {booking.owner_name}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {booking.time}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(booking.date).toLocaleDateString('es-CO')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-2">
+                          <p className="text-xl font-bold text-[#28B463]">
+                            {formatPrice(booking.price)}
+                          </p>
+
+                          {/* PIN Verification for Confirmed Bookings */}
+                          {booking.status === 'confirmed' && booking.payment_status === 'paid' && booking.verification_pin && (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  className="bg-sky-500 hover:bg-sky-600 text-white rounded-full"
+                                >
+                                  Verificar PIN e Iniciar
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Verificar PIN</DialogTitle>
+                                  <DialogDescription>
+                                    Ingresa el PIN de 6 dígitos que te dará el dueño para iniciar el paseo.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <PinVerifierInline
+                                  booking={booking}
+                                  onVerified={() => {
+                                    fetchSchedule();
+                                    toast.success('¡Paseo iniciado! GPS activado.');
+                                  }}
+                                />
+                              </DialogContent>
+                            </Dialog>
+                          )}
+
+                          {/* Waiting for PIN */}
+                          {booking.status === 'confirmed' && (!booking.verification_pin) && (
+                            <Badge className="bg-amber-100 text-amber-700 rounded-full text-xs">
+                              Esperando PIN del dueño
+                            </Badge>
+                          )}
+
+                          {/* Walk in Progress - Complete Button */}
+                          {booking.status === 'in_progress' && (
+                            <Button
+                              size="sm"
+                              onClick={async () => {
+                                if (!window.confirm('¿Finalizar el paseo?')) return;
+                                try {
+                                  await axios.post(`${API}/bookings/${booking.id}/complete`);
+                                  toast.success('¡Paseo completado!');
+                                  fetchSchedule();
+                                } catch (error) {
+                                  toast.error('Error al completar');
+                                }
+                              }}
+                              className="bg-red-500 hover:bg-red-600 text-white rounded-full"
+                            >
+                              Finalizar Paseo
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* GPS Status for In Progress */}
+                      {booking.status === 'in_progress' && (
+                        <div className="mt-4 p-3 bg-emerald-100 rounded-xl flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#28B463] animate-pulse"></span>
+                          <span className="text-sm text-emerald-700 font-medium">
+                            GPS Activo - Transmitiendo ubicación
+                          </span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="settings">
             <Card className="rounded-3xl border-stone-200">
               <CardHeader className="flex flex-row items-center justify-between">
@@ -661,7 +863,7 @@ const ProviderDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </div >
   );
 };
 

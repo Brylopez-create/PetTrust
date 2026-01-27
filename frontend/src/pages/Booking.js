@@ -9,7 +9,9 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Calendar, CreditCard } from 'lucide-react';
+import { Calendar, CreditCard, Clock, Users, QrCode, CheckCircle2, AlertCircle } from 'lucide-react';
+import PaymentSelector from '../components/PaymentSelector';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 
 const Booking = () => {
   const { type, id } = useParams();
@@ -17,18 +19,29 @@ const Booking = () => {
   const { user } = useContext(AuthContext);
   const [service, setService] = useState(null);
   const [pets, setPets] = useState([]);
+  const [slots, setSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [formData, setFormData] = useState({
     pet_id: '',
     date: '',
-    time: '09:00'
+    time: ''
   });
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [createdBooking, setCreatedBooking] = useState(null);
 
   useEffect(() => {
     fetchService();
     fetchPets();
   }, [type, id]);
+
+  // Fetch slots when date changes
+  useEffect(() => {
+    if (formData.date && service && (type === 'walker' || type === 'vet' || type === 'veterinario')) {
+      fetchSlots(formData.date);
+    }
+  }, [formData.date, service]);
 
   const fetchService = async () => {
     try {
@@ -37,7 +50,7 @@ const Booking = () => {
       else if (type === 'guarderia') endpoint = 'daycares';
       else if (type === 'daycare') endpoint = 'daycares';
       else if (type === 'veterinario') endpoint = 'vets';
-      else endpoint = 'vets'; // fallback for 'vet' or other aliases
+      else endpoint = 'vets';
 
       const response = await axios.get(`${API}/${endpoint}/${id}`);
       setService(response.data);
@@ -61,8 +74,58 @@ const Booking = () => {
     }
   };
 
+  const fetchSlots = async (date) => {
+    setSlotsLoading(true);
+    try {
+      const providerType = type === 'veterinario' ? 'vet' : type;
+      const response = await axios.get(`${API}/providers/${providerType}/${id}/slots`, {
+        params: { date }
+      });
+      setSlots(response.data.slots || []);
+
+      // Auto-select first available slot
+      const firstAvailable = response.data.slots?.find(s => s.available);
+      if (firstAvailable) {
+        setFormData(prev => ({ ...prev, time: firstAvailable.time }));
+      }
+    } catch (error) {
+      console.error('Error fetching slots:', error);
+      // Fallback to default slots
+      setSlots([
+        { time: '09:00', available: true, capacity_remaining: 4 },
+        { time: '10:00', available: true, capacity_remaining: 4 },
+        { time: '11:00', available: true, capacity_remaining: 4 },
+        { time: '14:00', available: true, capacity_remaining: 4 },
+        { time: '15:00', available: true, capacity_remaining: 4 },
+        { time: '16:00', available: true, capacity_remaining: 4 },
+        { time: '17:00', available: true, capacity_remaining: 4 }
+      ]);
+    } finally {
+      setSlotsLoading(false);
+    }
+  };
+
+  const formatTime = (time24) => {
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.date) {
+      toast.error('Por favor selecciona una fecha');
+      return;
+    }
+
+    if ((type === 'walker' || type === 'vet' || type === 'veterinario') && !formData.time) {
+      toast.error('Por favor selecciona un horario');
+      return;
+    }
+
     setProcessing(true);
 
     try {
@@ -76,23 +139,21 @@ const Booking = () => {
         service_type: type,
         service_id: id,
         date: formData.date,
-        time: formData.time,
+        time: formData.time || '09:00',
         price: price
       };
 
       const response = await axios.post(`${API}/bookings`, bookingData);
       const booking = response.data;
 
-      const paymentId = `demo_${Date.now()}`;
-      await axios.post(`${API}/bookings/${booking.id}/payment`, null, {
-        params: { payment_id: paymentId }
-      });
+      setCreatedBooking(booking);
+      setShowPayment(true);
+      toast.success('Reserva creada. Procede al pago.');
 
-      toast.success('¡Reserva confirmada exitosamente!');
-      navigate('/dashboard');
     } catch (error) {
       console.error('Error creating booking:', error);
-      toast.error(error.response?.data?.detail || 'Error al crear la reserva');
+      const errorMsg = error.response?.data?.detail || 'Error al crear la reserva';
+      toast.error(errorMsg);
     } finally {
       setProcessing(false);
     }
@@ -101,7 +162,7 @@ const Booking = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#28B463]-400 border-t-transparent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#28B463] border-t-transparent"></div>
       </div>
     );
   }
@@ -135,6 +196,9 @@ const Booking = () => {
     );
   }
 
+  const selectedSlot = slots.find(s => s.time === formData.time);
+  const hasAvailableSlots = slots.some(s => s.available);
+
   return (
     <div className="min-h-screen bg-stone-50">
       <Navbar />
@@ -150,6 +214,7 @@ const Booking = () => {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Pet Selection */}
                   <div>
                     <Label htmlFor="pet">Selecciona tu Mascota</Label>
                     <Select value={formData.pet_id} onValueChange={(value) => setFormData({ ...formData, pet_id: value })}>
@@ -166,6 +231,7 @@ const Booking = () => {
                     </Select>
                   </div>
 
+                  {/* Date Selection */}
                   <div>
                     <Label htmlFor="date">Fecha</Label>
                     <div className="relative mt-2">
@@ -174,7 +240,7 @@ const Booking = () => {
                         id="date"
                         type="date"
                         value={formData.date}
-                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, date: e.target.value, time: '' })}
                         className="h-12 rounded-xl pl-12"
                         min={new Date().toISOString().split('T')[0]}
                         required
@@ -183,47 +249,96 @@ const Booking = () => {
                     </div>
                   </div>
 
-                  {(type === 'walker' || type === 'veterinario' || type === 'vet') && (
+                  {/* Time Selection with Capacity - for Walker/Vet */}
+                  {(type === 'walker' || type === 'veterinario' || type === 'vet') && formData.date && (
                     <div>
-                      <Label htmlFor="time">Hora</Label>
-                      <Select value={formData.time} onValueChange={(value) => setFormData({ ...formData, time: value })}>
-                        <SelectTrigger className="mt-2 h-12 rounded-xl" id="time" data-testid="time-select">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="06:00">6:00 AM</SelectItem>
-                          <SelectItem value="09:00">9:00 AM</SelectItem>
-                          <SelectItem value="12:00">12:00 PM</SelectItem>
-                          <SelectItem value="15:00">3:00 PM</SelectItem>
-                          <SelectItem value="18:00">6:00 PM</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Horario Disponible
+                      </Label>
+
+                      {slotsLoading ? (
+                        <div className="mt-3 flex items-center justify-center py-8">
+                          <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#28B463] border-t-transparent"></div>
+                        </div>
+                      ) : !hasAvailableSlots ? (
+                        <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-amber-800">Sin disponibilidad para esta fecha</p>
+                            <p className="text-sm text-amber-600">Por favor selecciona otra fecha</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                          {slots.map((slot) => (
+                            <button
+                              key={slot.time}
+                              type="button"
+                              disabled={!slot.available}
+                              onClick={() => setFormData({ ...formData, time: slot.time })}
+                              className={`
+                                relative p-3 rounded-xl text-sm font-medium transition-all
+                                ${formData.time === slot.time
+                                  ? 'bg-[#28B463] text-white ring-2 ring-[#28B463] ring-offset-2'
+                                  : slot.available
+                                    ? 'bg-white border-2 border-stone-200 hover:border-[#28B463] text-stone-700'
+                                    : 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                                }
+                              `}
+                            >
+                              <div>{formatTime(slot.time)}</div>
+                              <div className={`text-xs mt-1 flex items-center justify-center gap-1 ${formData.time === slot.time ? 'text-white/80' : 'text-stone-500'}`}>
+                                <Users className="w-3 h-3" />
+                                {slot.capacity_remaining} cupos
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  <div className="bg-stone-100 rounded-2xl p-6">
-                    <div className="flex items-center gap-2 text-stone-600 mb-4">
-                      <CreditCard className="w-5 h-5" />
-                      <span className="font-semibold">Pago (Demo)</span>
+                  {/* Payment Info */}
+                  <div className="bg-gradient-to-r from-[#28B463]/10 to-[#78C494]/10 rounded-2xl p-6 border border-[#28B463]/20">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-[#28B463] flex items-center justify-center">
+                        <QrCode className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <span className="font-semibold text-stone-800">Pago por Bre-B / Nequi / Daviplata</span>
+                        <p className="text-xs text-stone-500">Escanea el QR o transfiere directamente</p>
+                      </div>
                     </div>
-                    <p className="text-sm text-stone-500">
-                      En modo demo, el pago se procesa automáticamente. En producción se integraría con Stripe, PayU o Wompi.
+                    <p className="text-sm text-stone-600">
+                      Al confirmar, te mostraremos el código QR para realizar tu pago. Un administrador validará tu transferencia y recibirás confirmación.
                     </p>
                   </div>
 
                   <Button
                     type="submit"
-                    disabled={processing}
-                    className="w-full h-14 bg-[#28B463] text-white hover:bg-[#78C494] rounded-full text-lg font-semibold shadow-lg shadow-emerald-100"
+                    disabled={processing || (type === 'walker' && !hasAvailableSlots)}
+                    className="w-full h-14 bg-[#28B463] text-white hover:bg-[#78C494] rounded-full text-lg font-semibold shadow-lg shadow-emerald-100 disabled:opacity-50"
                     data-testid="confirm-booking-btn"
                   >
-                    {processing ? 'Procesando...' : 'Confirmar Reserva'}
+                    {processing ? (
+                      <span className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        Procesando...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <CheckCircle2 className="w-5 h-5" />
+                        Confirmar Reserva
+                      </span>
+                    )}
                   </Button>
                 </form>
               </CardContent>
             </Card>
           </div>
 
+          {/* Summary Card */}
           <div className="lg:col-span-1">
             <Card className="rounded-3xl border-stone-200 sticky top-24">
               <CardHeader>
@@ -242,6 +357,27 @@ const Booking = () => {
                   </div>
                 </div>
 
+                {formData.date && (
+                  <div>
+                    <div className="text-sm text-stone-500 mb-1">Fecha</div>
+                    <div className="font-semibold text-stone-900">
+                      {new Date(formData.date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </div>
+                  </div>
+                )}
+
+                {formData.time && selectedSlot && (
+                  <div>
+                    <div className="text-sm text-stone-500 mb-1">Hora</div>
+                    <div className="font-semibold text-stone-900 flex items-center gap-2">
+                      {formatTime(formData.time)}
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                        {selectedSlot.capacity_remaining} cupos disponibles
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="pt-4 border-t border-stone-200">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-stone-600">Subtotal</span>
@@ -251,7 +387,7 @@ const Booking = () => {
                   </div>
                   <div className="flex items-center justify-between text-lg font-bold text-stone-900 pt-2 border-t border-stone-200">
                     <span>Total</span>
-                    <span>${(type === 'walker' ? service.price_per_walk : (service.price_per_day || service.rates?.consultation || 0)).toLocaleString()}</span>
+                    <span className="text-[#28B463]">${(type === 'walker' ? service.price_per_walk : (service.price_per_day || service.rates?.consultation || 0)).toLocaleString()}</span>
                   </div>
                 </div>
               </CardContent>
@@ -259,6 +395,24 @@ const Booking = () => {
           </div>
         </div>
       </div>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPayment} onOpenChange={setShowPayment}>
+        <DialogContent className="sm:max-w-md p-0 bg-transparent border-0 shadow-none">
+          {createdBooking && (
+            <PaymentSelector
+              bookingId={createdBooking.id}
+              amount={createdBooking.price}
+              onComplete={() => {
+                setShowPayment(false);
+                toast.success('¡Pago enviado! El administrador validará tu transferencia.');
+                navigate('/dashboard');
+              }}
+              onCancel={() => setShowPayment(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
