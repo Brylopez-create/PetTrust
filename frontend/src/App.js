@@ -19,7 +19,7 @@ import CreateProfile from './pages/CreateProfile';
 import WalkersLanding from './pages/WalkersLanding';
 import Benefits from './pages/Benefits';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 export const API = `${BACKEND_URL}/api`;
 
 export const AuthContext = React.createContext(null);
