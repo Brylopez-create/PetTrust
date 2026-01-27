@@ -154,18 +154,26 @@ const PaymentSelector = ({ bookingId, amount, onComplete, onCancel }) => {
                 </div>
 
                 <CardContent className="p-6 space-y-6">
-                    {/* QR Code Placeholder - In production, you'd generate this */}
-                    <div className="bg-white rounded-2xl p-6 border-2 border-dashed border-stone-200 flex flex-col items-center justify-center">
-                        <div className="w-48 h-48 bg-stone-100 rounded-xl flex items-center justify-center mb-4 relative">
-                            <QrCode className="w-32 h-32 text-stone-400" />
-                            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/80 rounded-xl flex items-end justify-center pb-4">
-                                <span className="text-xs text-stone-500">QR Generado con llave</span>
+                    {/* QR Code - Use actual Bre-B image */}
+                    <div className="bg-white rounded-2xl p-4 border-2 border-dashed border-stone-200 flex flex-col items-center justify-center">
+                        {method === 'breb' ? (
+                            <img
+                                src="/breb-qr.png"
+                                alt="Código QR Bre-B"
+                                className="w-full max-w-[280px] rounded-lg"
+                            />
+                        ) : (
+                            <div className="w-48 h-48 bg-stone-100 rounded-xl flex items-center justify-center mb-4 relative">
+                                <QrCode className="w-32 h-32 text-stone-400" />
+                                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/80 rounded-xl flex items-end justify-center pb-4">
+                                    <span className="text-xs text-stone-500">Usa la llave para transferir</span>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Payment Key */}
-                        <div className="bg-stone-50 rounded-xl p-4 w-full">
-                            <p className="text-xs text-stone-500 text-center mb-2">Llave de transferencia</p>
+                        <div className="bg-stone-50 rounded-xl p-4 w-full mt-4">
+                            <p className="text-xs text-stone-500 text-center mb-2">O páguele por Bre-B a la siguiente llave</p>
                             <div className="flex items-center justify-center gap-3">
                                 <span className="font-mono font-bold text-2xl tracking-widest">{PAYMENT_KEY}</span>
                                 <Button
