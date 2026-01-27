@@ -9,6 +9,26 @@ import {
     Key, QrCode, MapPin, Navigation, CheckCircle2,
     Loader2, Copy, Shield, AlertCircle, Play, StopCircle
 } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix Leaflet default icon
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+    iconUrl: require('leaflet/dist/images/marker-icon.png'),
+    shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+});
+
+// Component to center map on new location
+const RecenterAutomatically = ({ lat, lng }) => {
+    const map = useMap();
+    useEffect(() => {
+        map.setView([lat, lng]);
+    }, [lat, lng, map]);
+    return null;
+};
 
 // PIN Generator Component for Owner
 export const PinGenerator = ({ booking, onPinGenerated }) => {
@@ -305,32 +325,70 @@ export const LiveGpsTracker = ({ booking, isWalker = false }) => {
                         <p className="text-xs text-stone-500">
                             Tu ubicación se actualiza automáticamente para el dueño
                         </p>
+
+                        {/* Walker Map Preview */}
+                        <div className="h-48 rounded-xl overflow-hidden border border-stone-200 mt-4 relative z-0">
+                            {location?.current_location ? (
+                                <MapContainer
+                                    center={[location.current_location.lat, location.current_location.lng]}
+                                    zoom={15}
+                                    style={{ height: '100%', width: '100%' }}
+                                    zoomControl={false}
+                                >
+                                    <TileLayer
+                                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                    />
+                                    <Marker position={[location.current_location.lat, location.current_location.lng]} />
+                                    <RecenterAutomatically lat={location.current_location.lat} lng={location.current_location.lng} />
+                                </MapContainer>
+                            ) : (
+                                <div className="h-full flex items-center justify-center bg-stone-100 text-stone-400">
+                                    <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                                    Obteniendo GPS...
+                                </div>
+                            )}
+                        </div>
                     </div>
                 ) : (
                     <div className="space-y-3">
                         {location?.current_location ? (
-                            <div className="bg-stone-50 rounded-xl p-4">
-                                <div className="flex items-center gap-2 text-sm text-stone-600 mb-2">
-                                    <MapPin className="w-4 h-4 text-[#28B463]" />
-                                    <span>Ubicación actual del paseador</span>
+                            <>
+                                <div className="bg-stone-50 rounded-xl p-3 flex justify-between items-center text-xs text-stone-600">
+                                    <div className="flex items-center gap-2">
+                                        <MapPin className="w-4 h-4 text-[#28B463]" />
+                                        <span>Última actualización:</span>
+                                    </div>
+                                    <span className="font-mono">
+                                        {new Date().toLocaleTimeString()}
+                                    </span>
                                 </div>
-                                <div className="font-mono text-xs text-stone-500">
-                                    {location.current_location.lat.toFixed(6)}, {location.current_location.lng.toFixed(6)}
+
+                                {/* Owner Live Map */}
+                                <div className="h-64 rounded-xl overflow-hidden border border-stone-200 shadow-inner relative z-0">
+                                    <MapContainer
+                                        center={[location.current_location.lat, location.current_location.lng]}
+                                        zoom={16}
+                                        style={{ height: '100%', width: '100%' }}
+                                    >
+                                        <TileLayer
+                                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                        />
+                                        <Marker position={[location.current_location.lat, location.current_location.lng]}>
+                                            <Popup>
+                                                ¡Aquí está tu peludo! 🐶
+                                            </Popup>
+                                        </Marker>
+                                        <RecenterAutomatically lat={location.current_location.lat} lng={location.current_location.lng} />
+                                    </MapContainer>
                                 </div>
-                            </div>
+                            </>
                         ) : (
-                            <div className="text-center py-4 text-stone-500 text-sm">
-                                Esperando ubicación del paseador...
+                            <div className="h-64 bg-stone-100 rounded-xl flex flex-col items-center justify-center text-stone-500 space-y-2">
+                                <Loader2 className="w-8 h-8 text-[#28B463] animate-spin" />
+                                <p>Conectando con el collar...</p>
                             </div>
                         )}
-
-                        {/* Simple map placeholder - in production, use Google Maps or Mapbox */}
-                        <div className="h-40 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-xl flex items-center justify-center">
-                            <div className="text-center">
-                                <MapPin className="w-8 h-8 text-[#28B463] mx-auto mb-2" />
-                                <p className="text-xs text-stone-500">Mapa en tiempo real</p>
-                            </div>
-                        </div>
                     </div>
                 )}
             </CardContent>
