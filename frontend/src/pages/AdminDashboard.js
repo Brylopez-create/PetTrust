@@ -8,7 +8,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { CheckCircle2, XCircle, Users, TrendingUp, AlertTriangle, Calendar } from 'lucide-react';
+import { CheckCircle2, XCircle, Users, TrendingUp, AlertTriangle, Calendar, RefreshCw } from 'lucide-react';
 
 const AdminDashboard = () => {
   const { user } = useContext(AuthContext);
@@ -25,10 +25,15 @@ const AdminDashboard = () => {
       return;
     }
     fetchData();
+
+    // Poll for updates every 15 seconds
+    const interval = setInterval(fetchData, 15000);
+    return () => clearInterval(interval);
   }, [user]);
 
   const fetchData = async () => {
-    setLoading(true);
+    // Only set loading on initial load to avoid flashing
+    if (!stats) setLoading(true);
     try {
       const [statsRes, verificationsRes, paymentsRes, prospectsRes] = await Promise.all([
         axios.get(`${API}/admin/stats`),
@@ -97,9 +102,20 @@ const AdminDashboard = () => {
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-heading font-bold text-stone-900 mb-2">Panel de Administración</h1>
-          <p className="text-stone-600">Control y supervisión de la plataforma</p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-heading font-bold text-stone-900 mb-2">Panel de Administración</h1>
+            <p className="text-stone-600">Control y supervisión de la plataforma</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={fetchData}
+            disabled={loading}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </Button>
         </div>
 
         {stats && (
