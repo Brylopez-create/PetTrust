@@ -1482,6 +1482,26 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
         "pending_prospects": await db.prospects.count_documents({"status": "pending"})
     }
 
+@api_router.get("/admin/pending-verifications")
+async def get_pending_verifications(current_user: dict = Depends(get_current_user)):
+    """Get all providers waiting for verification"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores")
+    
+    walkers_cursor = db.walkers.find({"verification_status": "pending"})
+    daycares_cursor = db.daycares.find({"verification_status": "pending"})
+    
+    walkers = await walkers_cursor.to_list(100)
+    daycares = await daycares_cursor.to_list(100)
+    
+    # Add type field for frontend distinction
+    for w in walkers: 
+        w["type"] = "walker"
+    for d in daycares: 
+        d["type"] = "daycare"
+        
+    return walkers + daycares
+
 # ============= MATCHING & AVAILABILITY ENDPOINTS =============
 
 
@@ -2268,7 +2288,28 @@ async def review_payment(
         booking_status = "confirmed"
         payment_status = "paid"
         
-        # Notify user/provider logic would go here
+        # Notify user
+        booking = await db.bookings.find_one({"id": payment.get("booking_id")})
+        if booking:
+            # Notify Owner
+            user_notification = Notification(
+                user_id=booking["owner_id"],
+                type="payment_approved",
+                title="¡Pago Confirmado!",
+                message="Tu pago ha sido verificado. El paseador ha sido notificado y el PIN está disponible.",
+                data={"booking_id": payment.get("booking_id")}
+            )
+            await db.notifications.insert_one(user_notification.model_dump())
+            
+            # Notify Provider
+            provider_notification = Notification(
+                user_id=booking["service_id"],
+                type="booking_confirmed",
+                title="Nueva Reserva Confirmada",
+                message=f"Tienes una reserva confirmada para {booking['date']} a las {booking.get('time', 'N/A')}. Puedes ver el detalle en tu agenda.",
+                data={"booking_id": payment.get("booking_id")}
+            )
+            await db.notifications.insert_one(provider_notification.model_dump())
         
     elif action == "reject":
         new_status = "rejected"
@@ -3459,76 +3500,9 @@ async def create_manual_payment(
     
     return {"message": "Comprobante enviado para revisión", "payment_id": manual_payment.id}
 
-@api_router.get("/admin/payments/pending")
-async def get_pending_payments(current_user: dict = Depends(get_current_user)):
-    """Get all pending manual payments (Admin only)"""
-    if current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Acceso denegado")
-    
-    payments = await db.manual_payments.find({"status": "pending"}).to_list(100)
-    for p in payments:
-        p.pop("_id", None)
-    return payments
 
-@api_router.patch("/admin/payments/{payment_id}/review")
-async def review_manual_payment(
-    payment_id: str,
-    action: str,
-    notes: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
-):
-    """Approve or reject manual payment (Admin only)"""
-    if current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Acceso denegado")
-    
-    if action not in ["approve", "reject"]:
-        raise HTTPException(status_code=400, detail="Action debe ser 'approve' o 'reject'")
-    
-    payment = await db.manual_payments.find_one({"id": payment_id})
-    if not payment:
-        raise HTTPException(status_code=404, detail="Pago no encontrado")
-    
-    new_status = "approved" if action == "approve" else "rejected"
-    await db.manual_payments.update_one(
-        {"id": payment_id},
-        {"$set": {
-            "status": new_status,
-            "admin_notes": notes,
-            "reviewed_by": current_user["id"],
-            "reviewed_at": datetime.now(timezone.utc).isoformat()
-        }}
-    )
-    
-    # If approved, confirm the booking
-    if action == "approve":
-        await db.bookings.update_one(
-            {"id": payment["booking_id"]},
-            {"$set": {"status": "confirmed", "payment_status": "paid"}}
-        )
-        
-        # Notify user
-        booking = await db.bookings.find_one({"id": payment["booking_id"]})
-        if booking:
-            user_notification = Notification(
-                user_id=booking["owner_id"],
-                type="payment_approved",
-                title="¡Pago Confirmado!",
-                message="Tu pago ha sido verificado. El paseador ha sido notificado para iniciar el servicio.",
-                data={"booking_id": payment["booking_id"]}
-            )
-            await db.notifications.insert_one(user_notification.model_dump())
-            
-            # Notify provider
-            provider_notification = Notification(
-                user_id=booking["service_id"],
-                type="booking_confirmed",
-                title="Nueva Reserva Confirmada",
-                message=f"Tienes una reserva confirmada para {booking['date']} a las {booking.get('time', 'N/A')}. Puedes iniciar el servicio.",
-                data={"booking_id": payment["booking_id"]}
-            )
-            await db.notifications.insert_one(provider_notification.model_dump())
-    
-    return {"message": "Revisión de pago completada", "status": new_status}
+
+
 
 # Alternative endpoint for frontend compatibility
 class RegisterManualPayment(BaseModel):
