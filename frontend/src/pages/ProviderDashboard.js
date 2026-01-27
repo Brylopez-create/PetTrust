@@ -24,6 +24,7 @@ import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
 import { Textarea } from "../components/ui/textarea"
 import {
+  Inbox, Calendar, Settings, MapPin, Clock, DollarSign,
   CheckCircle, XCircle, AlertCircle, User, Dog, Loader2
 } from 'lucide-react';
 import { LiveGpsTracker } from '../components/WalkTracking';
