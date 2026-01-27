@@ -37,8 +37,14 @@ const AdminDashboard = () => {
         axios.get(`${API}/admin/prospects`)
       ]);
       setStats(statsRes.data);
-      setPendingVerifications(verificationsRes.data);
-      setPendingPayments(paymentsRes.data);
+
+      const allVerifications = verificationsRes.data || [];
+      setPendingVerifications({
+        walkers: allVerifications.filter(v => v.type === 'walker'),
+        daycares: allVerifications.filter(v => v.type === 'daycare')
+      });
+
+      setPendingPayments(paymentsRes.data || []);
       setProspects(prospectsRes.data);
     } catch (error) {
       console.error('Error fetching admin data:', error);
@@ -60,7 +66,7 @@ const AdminDashboard = () => {
 
   const handleReviewPayment = async (paymentId, action) => {
     try {
-      await axios.patch(`${API}/admin/payments/${paymentId}/review?action=${action}`);
+      await axios.patch(`${API}/admin/payments/${paymentId}/review`, { action });
       toast.success(action === 'approve' ? 'Pago aprobado correlamente' : 'Pago rechazado');
       fetchData();
     } catch (error) {
@@ -280,8 +286,8 @@ const AdminDashboard = () => {
                           </div>
                           <div className="mt-2 md:mt-0 flex flex-col items-end">
                             <Badge className={`rounded-full ${prospect.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
-                                prospect.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                  'bg-amber-100 text-amber-700'
+                              prospect.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-amber-100 text-amber-700'
                               }`}>
                               {prospect.status === 'approved' ? 'Aprobado' :
                                 prospect.status === 'rejected' ? 'Rechazado' : 'Pendiente'}

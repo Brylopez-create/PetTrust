@@ -172,8 +172,8 @@ const ProviderDashboard = () => {
 
   const fetchSchedule = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const response = await axios.get(`${API}/providers/me/schedule?date=${today}`);
+      // Fetch all upcoming bookings
+      const response = await axios.get(`${API}/providers/me/schedule`);
       setSchedule(response.data);
     } catch (error) {
       console.error('Error fetching schedule:', error);
@@ -565,7 +565,7 @@ const ProviderDashboard = () => {
                 <CardContent className="p-12 text-center">
                   <Calendar className="w-16 h-16 text-stone-300 mx-auto mb-4" />
                   <h3 className="text-xl font-heading font-bold text-stone-900 mb-2">
-                    Sin reservas hoy
+                    Sin reservas próximas
                   </h3>
                   <p className="text-stone-600">
                     Tus próximas reservas aparecerán aquí.

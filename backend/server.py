@@ -1319,41 +1319,7 @@ async def get_shared_trip(share_code: str):
         "status": booking.get("status", "unknown")
     }
 
-@api_router.post("/bookings/{booking_id}/generate-pin")
-async def generate_verification_pin(booking_id: str, current_user: dict = Depends(get_current_user)):
-    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
-    if not booking:
-        raise HTTPException(status_code=404, detail="Reserva no encontrada")
-    
-    if booking["owner_id"] != current_user["id"] and booking.get("service_id") != current_user["id"]:
-        raise HTTPException(status_code=403, detail="No autorizado")
-    
-    existing_pin = await db.verification_pins.find_one({"booking_id": booking_id, "verified": False}, {"_id": 0})
-    if existing_pin:
-        return {"pin_code": existing_pin["pin_code"], "message": "PIN ya generado"}
-    
-    pin_code = str(random.randint(1000, 9999))
-    
-    pin = VerificationPin(
-        booking_id=booking_id,
-        pin_code=pin_code
-    )
-    await db.verification_pins.insert_one(pin.model_dump())
-    
-    return {"pin_code": pin_code, "message": "PIN generado. Compártelo con el paseador/dueño."}
 
-@api_router.post("/bookings/{booking_id}/verify-pin")
-async def verify_pin(booking_id: str, pin_code: str, current_user: dict = Depends(get_current_user)):
-    pin = await db.verification_pins.find_one({"booking_id": booking_id, "pin_code": pin_code, "verified": False}, {"_id": 0})
-    if not pin:
-        raise HTTPException(status_code=400, detail="PIN inválido o ya verificado")
-    
-    await db.verification_pins.update_one(
-        {"id": pin["id"]},
-        {"$set": {"verified": True, "verified_at": datetime.now(timezone.utc).isoformat()}}
-    )
-    
-    return {"message": "PIN verificado exitosamente", "verified": True}
 
 @api_router.post("/sos")
 async def trigger_sos_alert(booking_id: str, latitude: float, longitude: float, current_user: dict = Depends(get_current_user)):
@@ -1497,8 +1463,10 @@ async def get_pending_verifications(current_user: dict = Depends(get_current_use
     # Add type field for frontend distinction
     for w in walkers: 
         w["type"] = "walker"
+        w.pop("_id", None)
     for d in daycares: 
         d["type"] = "daycare"
+        d.pop("_id", None)
         
     return walkers + daycares
 
