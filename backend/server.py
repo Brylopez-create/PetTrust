@@ -887,7 +887,13 @@ async def create_walker(walker_data: WalkerCreate, current_user: dict = Depends(
 
 @api_router.get("/walkers", response_model=List[WalkerProfile])
 async def get_walkers(location: Optional[str] = None, verified_only: bool = False):
-    query = {"is_active": True}
+    # Show active walkers OR pending verification walkers
+    query = {
+        "$or": [
+            {"is_active": True},
+            {"verification_status": "pending"}
+        ]
+    }
     if location:
         query["location_name"] = {"$regex": location, "$options": "i"}
     if verified_only:

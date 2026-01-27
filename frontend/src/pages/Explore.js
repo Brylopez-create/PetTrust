@@ -78,6 +78,11 @@ const Explore = () => {
           <p className="text-stone-600 text-sm mb-4 line-clamp-2">{walker.bio}</p>
 
           <div className="flex flex-wrap gap-2 mb-4">
+            {walker.verification_status === 'pending' && (
+              <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 rounded-full text-xs">
+                ⏳ Pendiente
+              </Badge>
+            )}
             {walker.verified && (
               <Badge className="bg-sky-100 text-sky-700 hover:bg-sky-100 rounded-full text-xs" data-testid="verified-badge">
                 <CheckCircle2 className="w-3 h-3 mr-1" />
