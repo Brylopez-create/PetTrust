@@ -249,6 +249,14 @@ export const LiveGpsTracker = ({ booking, isWalker = false }) => {
 
     // Send location to server (for walker)
     const sendLocation = useCallback(async (position) => {
+        const newLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+        };
+
+        // Update local state immediately for the walker UI
+        setLocation({ current_location: newLocation });
+
         try {
             await axios.post(`${API}/bookings/${booking.id}/update-location`, {
                 lat: position.coords.latitude,
