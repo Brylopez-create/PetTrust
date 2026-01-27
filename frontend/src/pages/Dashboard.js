@@ -11,7 +11,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
-import { CalendarDays, MapPin, Clock, PlusCircle, CreditCard, Loader2 } from 'lucide-react';
+import { CalendarDays, MapPin, Clock, PlusCircle, CreditCard, Loader2, Key, Copy, Shield } from 'lucide-react';
 import ImageUpload from '../components/ImageUpload';
 
 const Dashboard = () => {
@@ -216,6 +216,49 @@ const Dashboard = () => {
                         </span>
                         {getPaymentBadge(booking.payment_status)}
                       </div>
+
+                      {/* PIN Section for paid confirmed bookings */}
+                      {booking.payment_status === 'paid' && booking.status === 'confirmed' && booking.service_type === 'walker' && (
+                        <div className="bg-emerald-50 rounded-xl p-3 mb-3 border border-emerald-200">
+                          {booking.verification_pin ? (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Shield className="w-4 h-4 text-[#28B463]" />
+                                <span className="text-sm font-medium text-emerald-700">PIN:</span>
+                                <span className="font-mono font-bold text-lg text-[#28B463] tracking-wider">{booking.verification_pin}</span>
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 rounded-full"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(booking.verification_pin);
+                                  toast.success('PIN copiado');
+                                }}
+                              >
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const res = await axios.post(`${API}/bookings/${booking.id}/generate-pin`);
+                                  toast.success('¡PIN generado!');
+                                  fetchData(); // Refresh to show PIN
+                                } catch (error) {
+                                  toast.error(error.response?.data?.detail || 'Error al generar PIN');
+                                }
+                              }}
+                              className="w-full bg-[#28B463] hover:bg-[#78C494] text-white"
+                            >
+                              <Key className="w-4 h-4 mr-2" />
+                              Generar PIN para el paseador
+                            </Button>
+                          )}
+                        </div>
+                      )}
 
                       <div className="flex gap-2 pt-3 border-t border-stone-100">
                         {booking.payment_status !== 'paid' && booking.status !== 'cancelled' && (

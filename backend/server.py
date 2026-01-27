@@ -2157,7 +2157,10 @@ async def get_provider_schedule(
     
     query = {
         "service_id": profile["id"],
-        "status": {"$in": ["confirmed", "in_progress"]}
+        "$or": [
+            {"status": {"$in": ["confirmed", "in_progress"]}},
+            {"status": "pending", "payment_status": "paid"}
+        ]
     }
     
     if date:
