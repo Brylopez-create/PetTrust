@@ -14,7 +14,7 @@ const PaymentSelector = ({ bookingId, amount, onComplete, onCancel }) => {
     const [step, setStep] = useState('select'); // 'select', 'qr', 'upload', 'success'
 
     // La llave de transferencia Bre-B/Nequi/Daviplata
-    const PAYMENT_KEY = "1016088109";
+    const PAYMENT_KEY = "0091484291";
 
     const handleCopy = (text) => {
         navigator.clipboard.writeText(text);
@@ -92,9 +92,9 @@ const PaymentSelector = ({ bookingId, amount, onComplete, onCancel }) => {
                         </div>
                         <div className="text-left flex-1">
                             <span className="font-semibold text-stone-800 group-hover:text-[#00A1E4] block">Bre-B</span>
-                            <span className="text-xs text-stone-500">Ver QR para escanear</span>
+                            <span className="text-xs text-stone-500">Enviar a la llave</span>
                         </div>
-                        <QrCode className="w-6 h-6 text-stone-400 group-hover:text-[#00A1E4]" />
+                        <Smartphone className="w-6 h-6 text-stone-400 group-hover:text-[#00A1E4]" />
                     </button>
 
                     {/* Nequi Option */}
@@ -154,38 +154,26 @@ const PaymentSelector = ({ bookingId, amount, onComplete, onCancel }) => {
                 </div>
 
                 <CardContent className="p-6 space-y-6">
-                    {/* QR Code - Use actual Bre-B image */}
-                    <div className="bg-white rounded-2xl p-4 border-2 border-dashed border-stone-200 flex flex-col items-center justify-center">
-                        {method === 'breb' ? (
-                            <img
-                                src="/breb-qr.png"
-                                alt="Código QR Bre-B"
-                                className="w-full max-w-[280px] rounded-lg"
-                            />
-                        ) : (
-                            <div className="w-48 h-48 bg-stone-100 rounded-xl flex items-center justify-center mb-4 relative">
-                                <QrCode className="w-32 h-32 text-stone-400" />
-                                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/80 rounded-xl flex items-end justify-center pb-4">
-                                    <span className="text-xs text-stone-500">Usa la llave para transferir</span>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Payment Key */}
-                        <div className="bg-stone-50 rounded-xl p-4 w-full mt-4">
-                            <p className="text-xs text-stone-500 text-center mb-2">O páguele por Bre-B a la siguiente llave</p>
-                            <div className="flex items-center justify-center gap-3">
-                                <span className="font-mono font-bold text-2xl tracking-widest">{PAYMENT_KEY}</span>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-8 w-8 rounded-full hover:bg-[#28B463] hover:text-white"
-                                    onClick={() => handleCopy(PAYMENT_KEY)}
-                                >
-                                    <Copy className="w-4 h-4" />
-                                </Button>
-                            </div>
+                    {/* Key Display - No Image */}
+                    <div className="bg-white rounded-2xl p-8 border-2 border-dashed border-stone-200 flex flex-col items-center justify-center text-center">
+                        <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center mb-4">
+                            <Smartphone className="w-8 h-8 text-stone-400" />
                         </div>
+
+                        <p className="text-sm text-stone-500 mb-2">Transfiere a la llave:</p>
+                        <div className="flex items-center justify-center gap-3 mb-4">
+                            <span className="font-mono font-bold text-3xl tracking-widest text-stone-900">{PAYMENT_KEY}</span>
+                        </div>
+
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full hover:bg-stone-50"
+                            onClick={() => handleCopy(PAYMENT_KEY)}
+                        >
+                            <Copy className="w-4 h-4 mr-2" />
+                            Copiar Llave
+                        </Button>
                     </div>
 
                     {/* Instructions */}
