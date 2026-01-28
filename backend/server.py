@@ -58,7 +58,7 @@ cloudinary.config(
 )
 
 # Origins for CORS
-allowed_origins_raw = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,https://pettrust.vercel.app,https://pettrust-production.up.railway.app")
+allowed_origins_raw = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8081,https://pettrust.vercel.app,https://pettrust-production.up.railway.app")
 origins = [o.strip() for o in allowed_origins_raw.split(",")]
 
 async def upload_image_internal(data_or_file: Any, folder: str, user_id: str) -> str:
@@ -3050,7 +3050,10 @@ async def mark_all_notifications_read(current_user: dict = Depends(get_current_u
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', 'http://localhost:3000').split(','),
+    # Use the origins list defined at the top of the file
+    allow_origins=origins,
+    # Also allow regex for flexible development/preview environments
+    allow_origin_regex="https?://.*",
     allow_methods=["*"],
     allow_headers=["*"],
 )
