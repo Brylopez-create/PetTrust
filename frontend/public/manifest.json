@@ -1,0 +1,15 @@
+{
+    "short_name": "PetTrust",
+    "name": "PetTrust Bogotá - Cuidado de Mascotas",
+    "icons": [
+        {
+            "src": "logo-pettrust.png",
+            "sizes": "192x192 512x512",
+            "type": "image/png"
+        }
+    ],
+    "start_url": ".",
+    "display": "standalone",
+    "theme_color": "#0F4C75",
+    "background_color": "#ffffff"
+}
