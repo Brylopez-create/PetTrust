@@ -21,6 +21,9 @@ import random
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+import asyncio
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -80,6 +83,29 @@ async def upload_image_internal(data_or_file: Any, folder: str, user_id: str) ->
     except Exception as e:
         logging.error(f"Cloudinary upload error: {e}")
         return None
+
+async def send_email(to_email: str, subject: str, html_content: str):
+    api_key = os.environ.get("SENDGRID_API_KEY")
+    sender_email = os.environ.get("MAIL_FROM", "noreply@pettrust.co")
+    
+    if not api_key:
+        # Just log if no key, don't crash
+        logging.warning("No SENDGRID_API_KEY. Email not sent.")
+        return
+
+    message = Mail(
+        from_email=sender_email,
+        to_emails=to_email,
+        subject=subject,
+        html_content=html_content
+    )
+    try:
+        sg = SendGridAPIClient(api_key)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, sg.send, message)
+        logging.info(f"Email sent to {to_email} from {sender_email}")
+    except Exception as e:
+        logging.error(f"Error sending email: {e}")
 
 
 api_router = APIRouter(prefix="/api")
@@ -758,6 +784,18 @@ async def register(user_data: UserRegister):
     
     await db.users.insert_one(user_dict)
     
+    # Send Welcome Email
+    welcome_html = f"""
+    <div style="font-family: Arial, sans-serif; color: #333;">
+        <h1 style="color: #0F4C75;">¡Bienvenido a PetTrust, {user.name}!</h1>
+        <p>Estamos felices de tenerte con nosotros.</p>
+        <p>Encuentra al cuidador perfecto para tu mascota o gestiona tus servicios con total confianza.</p>
+        <br>
+        <a href="https://pettrust.vercel.app/dashboard" style="background-color: #28B463; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ir a mi Dashboard</a>
+    </div>
+    """
+    asyncio.create_task(send_email(user.email, "Bienvenido a PetTrust", welcome_html))
+
     token = create_access_token({"sub": user.id, "role": user.role})
     return {"token": token, "user": user}
 
@@ -1087,6 +1125,28 @@ async def create_booking(booking_data: BookingCreate, current_user: dict = Depen
         **booking_data.model_dump()
     )
     await db.bookings.insert_one(booking.model_dump())
+    
+    # Notify Provider via Email
+    # Retrieve provider email
+    service_type = booking.service_type
+    provider_collection = db.walkers if service_type == "walk" else db.daycares if service_type == "daycare" else db.vets
+    provider = await provider_collection.find_one({"id": booking.service_id})
+    
+    if provider and "email" in provider:
+         booking_html = f"""
+        <div style="font-family: Arial, sans-serif; color: #333;">
+            <h1 style="color: #0F4C75;">¡Nueva Solicitud de Reserva!</h1>
+            <p>Hola {provider.get('name', 'Aliado')}, tienes una nueva solicitud en PetTrust.</p>
+            <ul>
+                <li><strong>Servicio:</strong> {booking.service_type}</li>
+                <li><strong>Fecha:</strong> {booking.date} a las {booking.time}</li>
+                <li><strong>Mascota:</strong> {booking.pet_name}</li>
+            </ul>
+             <a href="https://pettrust.vercel.app/dashboard" style="background-color: #0F4C75; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver Solicitud</a>
+        </div>
+        """
+         asyncio.create_task(send_email(provider["email"], "Nueva Solicitud en PetTrust", booking_html))
+
     return booking
 
 @api_router.get("/bookings", response_model=List[Booking])
@@ -2284,6 +2344,38 @@ async def review_payment(
                 data={"booking_id": payment.get("booking_id")}
             )
             await db.notifications.insert_one(provider_notification.model_dump())
+            
+            # EMAIL NOTIFICATIONS 
+            # 1. Email to Owner
+            owner = await db.users.find_one({"id": booking["owner_id"]})
+            if owner and "email" in owner:
+                owner_html = f"""
+                <div style="font-family: Arial, sans-serif; color: #333;">
+                    <h1 style="color: #28B463;">¡Pago Aprobado y Reserva Confirmada!</h1>
+                    <p>Hola {owner.get('name', 'Usuario')}, tu pago ha sido verificado exitosamente.</p>
+                    <p>Tu reserva para el <strong>{booking['date']}</strong> a las <strong>{booking.get('time', 'N/A')}</strong> está 100% confirmada.</p>
+                    <p>Puedes entrar a la app para ver el PIN de seguridad o contactar a tu cuidador.</p>
+                    <br>
+                    <a href="https://pettrust.vercel.app/dashboard" style="background-color: #0F4C75; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver Reserva</a>
+                </div>
+                """
+                asyncio.create_task(send_email(owner["email"], "Reserva Confirmada en PetTrust", owner_html))
+            
+            # 2. Email to Provider (Optional but good UX)
+            # Fetch provider email by service type
+            provider_collection = db.walkers if booking.get("service_type") == "walk" else db.daycares if booking.get("service_type") == "daycare" else db.vets
+            provider = await provider_collection.find_one({"id": booking["service_id"]})
+            
+            if provider and "email" in provider:
+                prov_html = f"""
+                <div style="font-family: Arial, sans-serif; color: #333;">
+                    <h1 style="color: #0F4C75;">¡Reserva Confirmada!</h1>
+                    <p>El cliente {owner.get('name', 'Usuario') if owner else 'Cliente'} ha completado el pago.</p>
+                    <p>Servicio: {booking['date']} - {booking.get('time', 'N/A')}</p>
+                    <p>Prepárate para brindar el mejor servicio.</p>
+                </div>
+                """
+                asyncio.create_task(send_email(provider["email"], "Nueva Reserva PAGADA - PetTrust", prov_html))
         
     elif action == "reject":
         new_status = "rejected"
@@ -3528,6 +3620,23 @@ async def register_manual_payment(
     )
     await db.notifications.insert_one(admin_notification.model_dump())
     
+    # Send Email to Admin (Optional, but good for alerts)
+    # asyncio.create_task(send_email("admin@pettrust.co", "Nuevo Pago Manual", f"Pago de ${payment.amount} recibido."))
+
+    # Send Email to User
+    user_html = f"""
+    <div style="font-family: Arial, sans-serif; color: #333;">
+        <h1 style="color: #0F4C75;">Pago Recibido</h1>
+        <p>Hola {current_user.get('name', 'Usuario')},</p>
+        <p>Hemos recibido tu comprobante de pago por <strong>${payment.amount:,.0f}</strong>.</p>
+        <p>Nuestro equipo lo validará en breve y te notificaremos cuando tu reserva esté confirmada.</p>
+    </div>
+    """
+    # Fetch user email if not in current_user token
+    user_email = current_user.get("sub")
+    if user_email:
+         asyncio.create_task(send_email(user_email, "Comprobante de Pago Recibido", user_html))
+
     return {"message": "Comprobante enviado para revisión", "payment_id": manual_payment.id}
 
 @api_router.get("/admin/bookings/all")
@@ -3610,6 +3719,92 @@ app.add_middleware(
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+# ... (Previous code)
+
+class Review(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    booking_id: str
+    provider_id: str
+    user_id: str
+    user_name: str
+    rating: int = Field(ge=1, le=5)
+    comment: str
+    created_at: datetime = Field(default_factory=datetime.now(timezone.utc))
+
+class ReviewCreate(BaseModel):
+    booking_id: str
+    provider_id: str
+    rating: int = Field(ge=1, le=5)
+    comment: str
+
+@api_router.post("/reviews", status_code=status.HTTP_201_CREATED)
+async def create_review(review_data: ReviewCreate, current_user: dict = Depends(get_current_user)):
+    # 1. Verify booking exists and belongs to user
+    booking = await db.bookings.find_one({"id": review_data.booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    
+    if booking["owner_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="No tienes permiso para reseñar esta reserva")
+
+    if booking["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Solo puedes reseñar servicios completados")
+
+    # 2. Check if already reviewed
+    existing_review = await db.reviews.find_one({"booking_id": review_data.booking_id})
+    if existing_review:
+        raise HTTPException(status_code=400, detail="Ya has enviado una reseña para este servicio")
+
+    # 3. Create Review
+    new_review = Review(
+        booking_id=review_data.booking_id,
+        provider_id=review_data.provider_id,
+        user_id=current_user["id"],
+        user_name=current_user.get("sub", "Usuario"), 
+        rating=review_data.rating,
+        comment=review_data.comment
+    )
+    
+    # Fetch user name correctly
+    user_doc = await db.users.find_one({"id": current_user["id"]})
+    if user_doc:
+        new_review.user_name = user_doc["name"]
+
+    await db.reviews.insert_one(new_review.model_dump())
+
+    # 4. Update Provider Stats (Rating & Count)
+    provider_collection = None
+    if booking["service_type"] == "walk":
+        provider_collection = db.walkers
+    elif booking["service_type"] == "daycare":
+        provider_collection = db.daycares
+    elif booking["service_type"] == "vet":
+        provider_collection = db.vets
+    
+    if provider_collection:
+        provider = await provider_collection.find_one({"id": review_data.provider_id})
+        if provider:
+            current_count = provider.get("reviews_count", 0)
+            current_rating = provider.get("rating", 0.0)
+            
+            new_count = current_count + 1
+            # Calculate new average
+            new_rating = ((current_rating * current_count) + review_data.rating) / new_count
+            
+            await provider_collection.update_one(
+                {"id": review_data.provider_id},
+                {"$set": {"rating": round(new_rating, 1), "reviews_count": new_count}}
+            )
+
+    return new_review
+
+@api_router.get("/reviews/provider/{provider_id}")
+async def get_provider_reviews(provider_id: str):
+    cursor = db.reviews.find({"provider_id": provider_id}).sort("created_at", -1)
+    reviews = await cursor.to_list(length=100)
+    return reviews
+
 
 app.include_router(api_router)
 

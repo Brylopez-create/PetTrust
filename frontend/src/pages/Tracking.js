@@ -9,12 +9,13 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import {
   ArrowLeft, MapPin, Navigation, Clock, Activity, Dog,
-  CheckCircle2, AlertCircle, Loader2, RefreshCw, Phone, Shield
+  CheckCircle2, AlertCircle, Loader2, RefreshCw, Phone, Shield, Star
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PinGenerator, LiveGpsTracker } from '../components/WalkTracking';
+import ReviewForm from '../components/ReviewForm';
 
 // Fix Leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -41,6 +42,7 @@ const Tracking = () => {
   const [liveLocation, setLiveLocation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   const fetchBooking = useCallback(async () => {
     try {
@@ -130,6 +132,17 @@ const Tracking = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
       <Navbar />
+
+      {/* Review Modal */}
+      {booking && (
+        <ReviewForm
+          bookingId={booking.id}
+          providerId={booking.provider_id || booking.walker_id}
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          onReviewSubmitted={() => fetchBooking()}
+        />
+      )}
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
@@ -301,9 +314,17 @@ const Tracking = () => {
                 <CardContent className="p-6 text-center">
                   <CheckCircle2 className="w-12 h-12 text-[#28B463] mx-auto mb-3" />
                   <h3 className="text-lg font-bold text-[#28B463] mb-2">¡Paseo Completado!</h3>
-                  <p className="text-sm text-stone-600">
+                  <p className="text-sm text-stone-600 mb-4">
                     {booking.completed_at && new Date(booking.completed_at).toLocaleString('es-CO')}
                   </p>
+
+                  <Button
+                    onClick={() => setShowReviewModal(true)}
+                    className="w-full bg-[#0F4C75] hover:bg-[#0b3a59] text-white rounded-xl shadow-lg shadow-blue-100"
+                  >
+                    <Star className="w-4 h-4 mr-2 fill-current" />
+                    Calificar Servicio
+                  </Button>
                 </CardContent>
               </Card>
             )}

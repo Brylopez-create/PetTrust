@@ -63,19 +63,32 @@ const AdminDashboard = () => {
     try {
       await axios.patch(`${API}/walkers/${walkerId}/verify?verified=${approved}`);
       toast.success(approved ? 'Paseador aprobado' : 'Paseador rechazado');
+
+      // Optimistic update
+      setPendingVerifications(prev => ({
+        ...prev,
+        walkers: prev.walkers.filter(w => w.id !== walkerId)
+      }));
+
       fetchData();
     } catch (error) {
       toast.error('Error al procesar verificación');
+      fetchData();
     }
   };
 
   const handleReviewPayment = async (paymentId, action) => {
     try {
       await axios.patch(`${API}/admin/payments/${paymentId}/review`, { action });
-      toast.success(action === 'approve' ? 'Pago aprobado correlamente' : 'Pago rechazado');
+      toast.success(action === 'approve' ? 'Pago aprobado correctamente' : 'Pago rechazado');
+
+      // Optimistic update
+      setPendingPayments(prev => prev.filter(p => p.id !== paymentId));
+
       fetchData();
     } catch (error) {
       toast.error('Error al procesar el pago');
+      fetchData();
     }
   };
 
@@ -83,9 +96,16 @@ const AdminDashboard = () => {
     try {
       await axios.patch(`${API}/admin/prospects/${prospectId}`, { status });
       toast.success(`Prospecto ${status === 'approved' ? 'aprobado' : 'actualizado'}`);
+
+      // Optimistic update
+      setProspects(prev => prev.map(p =>
+        p.id === prospectId ? { ...p, status } : p
+      ));
+
       fetchData();
     } catch (error) {
       toast.error('Error al actualizar prospecto');
+      fetchData();
     }
   };
 
