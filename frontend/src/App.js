@@ -19,6 +19,9 @@ import CreateProfile from './pages/CreateProfile';
 import WalkersLanding from './pages/WalkersLanding';
 import Benefits from './pages/Benefits';
 
+import { Capacitor } from '@capacitor/core';
+import Onboarding from './pages/Onboarding';
+
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 export const API = `${BACKEND_URL}/api`;
 
@@ -28,6 +31,9 @@ function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
+
+  // Detect if running as Native App (APK) or PWA Standalone
+  const isMobileApp = Capacitor.isNativePlatform() || window.matchMedia('(display-mode: standalone)').matches;
 
   useEffect(() => {
     if (token) {
@@ -76,7 +82,13 @@ function App() {
     <AuthContext.Provider value={{ user, token, login, logout }}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />} />
+          {/* Conditional Entry Point: If Mobile/PWA -> Onboarding, else -> Home */}
+          <Route path="/" element={
+            user ? <Navigate to="/dashboard" /> :
+              (isMobileApp ? <Onboarding /> : <Home />)
+          } />
+
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/paseadores" element={<WalkersLanding />} />
           <Route path="/beneficios" element={<Benefits />} />
           <Route path="/explorar" element={!user || user.role === 'owner' ? <Explore /> : <Navigate to="/provider-dashboard" />} />
