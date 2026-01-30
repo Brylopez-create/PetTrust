@@ -4,6 +4,10 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { AuthContext, API } from '../App';
 import ImageUpload from '../components/ImageUpload';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 
 const Register = () => {
   const navigate = useNavigate();
