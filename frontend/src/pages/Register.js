@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { AuthContext, API } from '../App';
@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -25,7 +26,14 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [isProspect, setIsProspect] = useState(false);
 
-  // ... (useEffect for token)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    if (token) {
+      setFormData(prev => ({ ...prev, onboarding_token: token }));
+      setIsProspect(true);
+    }
+  }, [location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
