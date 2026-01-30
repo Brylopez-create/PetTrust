@@ -1,4 +1,8 @@
-// ... imports
+import React, { useState, useContext, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
+import { toast } from 'sonner';
+import { AuthContext, API } from '../App';
 import ImageUpload from '../components/ImageUpload';
 
 const Register = () => {
