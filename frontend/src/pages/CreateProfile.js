@@ -193,7 +193,7 @@ const CreateProfile = () => {
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-6">
 
-// ...
+
                         <div className="space-y-2">
                             <Label>Biografía / Descripción</Label>
                             <Textarea
@@ -227,7 +227,7 @@ const CreateProfile = () => {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-// ...
+
                             <div className="space-y-2">
                                 <Label>Precio Base ({user.role === 'walker' ? 'Paseo' : user.role === 'daycare' ? 'Día' : 'Consulta'})</Label>
                                 <div className="relative">
