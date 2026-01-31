@@ -3842,11 +3842,17 @@ async def upload_image(file: UploadFile = File(...), folder: str = Form("general
         # Log Cloudinary config (without secrets)
         logging.info(f"Cloudinary cloud_name: {os.environ.get('CLOUDINARY_CLOUD_NAME', 'NOT SET')}")
         
-        # Upload to Cloudinary
+        # Upload to Cloudinary using BytesIO for proper file handling
+        from io import BytesIO
+        file_obj = BytesIO(contents)
+        
         result = cloudinary.uploader.upload(
-            contents,
+            file_obj,
             folder=f"pettrust/{folder}",
-            resource_type="image"
+            resource_type="image",
+            api_key=os.environ.get('CLOUDINARY_API_KEY'),
+            api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+            cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME')
         )
         
         logging.info(f"Upload successful: {result['secure_url']}")
