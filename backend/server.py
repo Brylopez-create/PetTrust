@@ -767,7 +767,14 @@ async def root():
     return {"message": "PetTrust Bogotá API v1.0"}
 
 @api_router.post("/auth/register")
-async def register(user_data: UserRegister):
+async def register(request: Request):
+    try:
+        try:
+            body = await request.json()
+            user_data = UserRegister(**body)
+        except Exception as e:
+             raise HTTPException(status_code=400, detail=f"Invalid Payload: {str(e)}")
+
     try:
         existing = await db.users.find_one({"email": user_data.email}, {"_id": 0})
         if existing:
