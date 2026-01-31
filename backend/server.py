@@ -821,13 +821,21 @@ async def register(user_data: UserRegister):
 @api_router.post("/auth/login")
 @limiter.limit("5/minute")
 async def login(credentials: UserLogin, request: Request):
-    user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
-    if not user or not verify_password(credentials.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
-    
-    token = create_access_token({"sub": user["id"], "role": user["role"]})
-    user.pop("password")
-    return {"token": token, "user": user}
+    try:
+        user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
+        if not user or not verify_password(credentials.password, user["password"]):
+            raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
+        
+        token = create_access_token({"sub": user["id"], "role": user["role"]})
+        user.pop("password")
+        return {"token": token, "user": user}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        logging.error(f"Login Error: {e}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"LOGIN ERROR: {str(e)}")
 
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
