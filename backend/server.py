@@ -74,6 +74,11 @@ cloudinary.config(
     secure=True
 )
 
+# Log Cloudinary configuration (without exposing secrets)
+logging.info(f"Cloudinary configured - Cloud Name: {os.environ.get('CLOUDINARY_CLOUD_NAME', 'NOT SET')}")
+logging.info(f"Cloudinary API Key: {os.environ.get('CLOUDINARY_API_KEY', 'NOT SET')[:5]}...")
+logging.info(f"Cloudinary API Secret: {'SET' if os.environ.get('CLOUDINARY_API_SECRET') else 'NOT SET'}")
+
 # Origins for CORS
 allowed_origins_raw = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8081,https://pettrust.vercel.app,https://pettrust-production.up.railway.app")
 origins = [o.strip() for o in allowed_origins_raw.split(",")]
@@ -3828,8 +3833,14 @@ async def upload_image(file: UploadFile = File(...), folder: str = Form("general
     No authentication required to allow profile picture uploads during registration
     """
     try:
+        logging.info(f"Received upload request - filename: {file.filename}, folder: {folder}")
+        
         # Read file content
         contents = await file.read()
+        logging.info(f"File read successfully, size: {len(contents)} bytes")
+        
+        # Log Cloudinary config (without secrets)
+        logging.info(f"Cloudinary cloud_name: {os.environ.get('CLOUDINARY_CLOUD_NAME', 'NOT SET')}")
         
         # Upload to Cloudinary
         result = cloudinary.uploader.upload(
@@ -3838,9 +3849,10 @@ async def upload_image(file: UploadFile = File(...), folder: str = Form("general
             resource_type="image"
         )
         
+        logging.info(f"Upload successful: {result['secure_url']}")
         return {"url": result["secure_url"]}
     except Exception as e:
-        logging.error(f"Image upload error: {e}")
+        logging.error(f"Image upload error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error uploading image: {str(e)}")
 
 
