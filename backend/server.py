@@ -136,7 +136,7 @@ if not SECRET_KEY:
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 def hash_password(password: str) -> str:
@@ -767,71 +767,56 @@ async def root():
     return {"message": "PetTrust Bogotá API v1.0"}
 
 @api_router.post("/auth/register")
-async def register(request: Request):
-    try:
-        try:
-            body = await request.json()
-            user_data = UserRegister(**body)
-        except Exception as e:
-             raise HTTPException(status_code=400, detail=f"Invalid Payload: {str(e)}")
+async def register(user_data: UserRegister):
+    existing = await db.users.find_one({"email": user_data.email}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="El email ya está registrado")
+    
+    hashed_pw = hash_password(user_data.password)
+    
+    role = user_data.role
+    phone = user_data.phone
+    
+    # Handle onboarding token
+    if user_data.onboarding_token:
+        prospect = await db.prospects.find_one({
+            "verification_token": user_data.onboarding_token, 
+            "status": "approved"
+        })
+        if prospect:
+            role = "walker"
+            phone = prospect.get("whatsapp", phone)
+            # Mark as activated
+            await db.prospects.update_one(
+                {"id": prospect["id"]}, 
+                {"$set": {"status": "activated"}}
+            )
 
-    try:
-        existing = await db.users.find_one({"email": user_data.email}, {"_id": 0})
-        if existing:
-            raise HTTPException(status_code=400, detail="El email ya está registrado")
-        
-        hashed_pw = hash_password(user_data.password)
-        
-        role = user_data.role
-        phone = user_data.phone
-        
-        # Handle onboarding token
-        if user_data.onboarding_token:
-            prospect = await db.prospects.find_one({
-                "verification_token": user_data.onboarding_token, 
-                "status": "approved"
-            })
-            if prospect:
-                role = "walker"
-                phone = prospect.get("whatsapp", phone)
-                # Mark as activated
-                await db.prospects.update_one(
-                    {"id": prospect["id"]}, 
-                    {"$set": {"status": "activated"}}
-                )
+    user = User(
+        email=user_data.email,
+        name=user_data.name,
+        role=role,
+        phone=phone
+    )
+    user_dict = user.model_dump()
+    user_dict["password"] = hashed_pw
+    
+    await db.users.insert_one(user_dict)
+    
+    # Send Welcome Email
+    welcome_html = f"""
+    <div style="font-family: Arial, sans-serif; color: #333;">
+        <h1 style="color: #0F4C75;">¡Bienvenido a PetTrust, {user.name}!</h1>
+        <p>Estamos felices de tenerte con nosotros.</p>
+        <p>Encuentra al cuidador perfecto para tu mascota o gestiona tus servicios con total confianza.</p>
+        <br>
+        <a href="https://pettrust.vercel.app/dashboard" style="background-color: #28B463; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ir a mi Dashboard</a>
+    </div>
+    """
+    asyncio.create_task(send_email(user.email, "Bienvenido a PetTrust", welcome_html))
 
-        user = User(
-            email=user_data.email,
-            name=user_data.name,
-            role=role,
-            phone=phone
-        )
-        user_dict = user.model_dump()
-        user_dict["password"] = hashed_pw
-        
-        await db.users.insert_one(user_dict)
-        
-        # Send Welcome Email
-        welcome_html = f"""
-        <div style="font-family: Arial, sans-serif; color: #333;">
-            <h1 style="color: #0F4C75;">¡Bienvenido a PetTrust, {user.name}!</h1>
-            <p>Estamos felices de tenerte con nosotros.</p>
-            <p>Encuentra al cuidador perfecto para tu mascota o gestiona tus servicios con total confianza.</p>
-            <br>
-            <a href="https://pettrust.vercel.app/dashboard" style="background-color: #28B463; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ir a mi Dashboard</a>
-        </div>
-        """
-        asyncio.create_task(send_email(user.email, "Bienvenido a PetTrust", welcome_html))
-
-        token = create_access_token({"sub": user.id, "role": user.role})
-        return {"token": token, "user": user}
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        logging.error(f"Register Error: {e}")
-        logging.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"DEBUG ERROR: {str(e)}")
+    token = create_access_token({"sub": user.id, "role": user.role})
+    return {"token": token, "user": user}
 
 @api_router.post("/auth/login")
 @limiter.limit("5/minute")
