@@ -3175,51 +3175,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ============= CLOUDINARY UPLOAD ENDPOINT =============
 
-class ImageUploadResponse(BaseModel):
-    url: str
-    public_id: str
-    folder: str
-
-@api_router.post("/uploads/image", response_model=ImageUploadResponse)
-async def upload_image(
-    file: UploadFile = File(...),
-    folder: str = "general",
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Upload image to Cloudinary.
-    Folders: pets, licenses, payments, profiles, gallery
-    """
-    allowed_folders = ["pets", "licenses", "payments", "profiles", "gallery", "general"]
-    if folder not in allowed_folders:
-        raise HTTPException(status_code=400, detail=f"Folder debe ser uno de: {allowed_folders}")
-    
-    # Validate file type
-    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
-    if file.content_type not in allowed_types:
-        raise HTTPException(status_code=400, detail="Solo se permiten imágenes (JPEG, PNG, WebP, GIF)")
-    
-    # Max 5MB
-    contents = await file.read()
-    if len(contents) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="La imagen no puede superar 5MB")
-    
-    try:
-        result = cloudinary.uploader.upload(
-            contents,
-            folder=f"pettrust/{folder}",
-            resource_type="image",
-            public_id=f"{current_user['id']}_{uuid.uuid4().hex[:8]}"
-        )
-        return ImageUploadResponse(
-            url=result["secure_url"],
-            public_id=result["public_id"],
-            folder=folder
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al subir imagen: {str(e)}")
 
 
 # ============= PROVIDER UNIFIED ENDPOINTS =============
