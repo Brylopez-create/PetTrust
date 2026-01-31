@@ -3820,6 +3820,30 @@ async def get_provider_reviews(provider_id: str):
     return reviews
 
 
+# Image Upload Endpoint (No authentication required for registration)
+@api_router.post("/uploads/image")
+async def upload_image(file: UploadFile = File(...), folder: str = Form("general")):
+    """
+    Upload image to Cloudinary
+    No authentication required to allow profile picture uploads during registration
+    """
+    try:
+        # Read file content
+        contents = await file.read()
+        
+        # Upload to Cloudinary
+        result = cloudinary.uploader.upload(
+            contents,
+            folder=f"pettrust/{folder}",
+            resource_type="image"
+        )
+        
+        return {"url": result["secure_url"]}
+    except Exception as e:
+        logging.error(f"Image upload error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error uploading image: {str(e)}")
+
+
 app.include_router(api_router)
 
 if __name__ == "__main__":
