@@ -37,6 +37,20 @@ app = FastAPI()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "https://pettrust.vercel.app",
+        "https://pet-trust-7-git-main-brayans-projects-0076d97c.vercel.app",
+        "https://*.vercel.app"  # Allow all Vercel preview deployments
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Startup Indexing
 @app.on_event("startup")
 async def setup_indices():
