@@ -48,70 +48,84 @@ const Explore = () => {
 
   const WalkerCard = ({ walker }) => (
     <Card
-      className="rounded-3xl border-stone-100 hover:shadow-lg transition-all cursor-pointer card-hover"
+      className="rounded-2xl border-stone-100 hover:shadow-lg transition-all cursor-pointer card-hover overflow-hidden h-full"
       onClick={() => navigate(`/paseadores/${walker.id}`)}
       data-testid={`walker-card-${walker.id}`}
     >
-      <CardContent className="p-0">
-        <div className="aspect-square bg-gradient-to-br from-emerald-100 to-stone-100 rounded-t-3xl overflow-hidden">
-          {walker.profile_image ? (
-            <img src={walker.profile_image} alt={walker.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-6xl">👤</div>
-          )}
-        </div>
-        <div className="p-6">
-          <div className="flex items-start justify-between mb-3">
+      <CardContent className="p-0 flex flex-col h-full">
+        {/* Mobile: Horizontal Layout optimized */}
+        <div className="flex sm:block h-full">
+          {/* Image Side */}
+          <div className="w-1/3 sm:w-full aspect-[4/5] sm:aspect-square bg-stone-100 relative shrink-0">
+            {walker.profile_image ? (
+              <img src={walker.profile_image} alt={walker.name} className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-4xl sm:text-6xl bg-gradient-to-br from-emerald-50 to-emerald-100/50">👤</div>
+            )}
+            {/* Rating Badge Overlay for Mobile */}
+            <div className="absolute top-2 left-2 sm:hidden flex items-center gap-1 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-lg shadow-sm">
+              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+              <span className="text-xs font-bold text-stone-900">{walker.rating}</span>
+            </div>
+          </div>
+
+          {/* Content Side */}
+          <div className="w-2/3 sm:w-full p-3 sm:p-5 flex flex-col justify-between">
             <div>
-              <h3 className="font-heading font-bold text-xl text-stone-900 mb-1">{walker.name}</h3>
-              <div className="flex items-center gap-1 text-sm text-stone-600">
-                <MapPin className="w-4 h-4" />
-                {walker.location_name}
+              <div className="flex items-start justify-between mb-1 sm:mb-2">
+                <div>
+                  <h3 className="font-heading font-bold text-lg sm:text-xl text-stone-900 leading-tight">{walker.name}</h3>
+                  <div className="flex items-center gap-1 text-xs text-stone-500 mt-0.5">
+                    <MapPin className="w-3 h-3" />
+                    <span className="truncate max-w-[100px]">{walker.location_name}</span>
+                  </div>
+                </div>
+                {/* Desktop Rating */}
+                <div className="hidden sm:flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <span className="text-sm font-semibold text-amber-700">{walker.rating}</span>
+                </div>
+              </div>
+
+              <p className="text-stone-600 text-xs sm:text-sm mb-3 line-clamp-2 leading-relaxed">{walker.bio}</p>
+
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {walker.verified && (
+                  <Badge className="bg-sky-50 text-sky-700 border-0 px-1.5 py-0.5 text-[10px] sm:text-xs">
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    Verificado
+                  </Badge>
+                )}
+                {walker.insured && (
+                  <Badge className="bg-emerald-50 text-emerald-700 border-0 px-1.5 py-0.5 text-[10px] sm:text-xs hidden min-[370px]:inline-flex">
+                    <Shield className="w-3 h-3 mr-1" />
+                    Asegurado
+                  </Badge>
+                )}
+                {walker.verification_status === 'pending' && (
+                  <Badge className="bg-amber-50 text-amber-700 border-0 px-1.5 py-0.5 text-[10px]">
+                    ⏳ Pendiente
+                  </Badge>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full">
-              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-              <span className="text-sm font-semibold text-amber-700">{walker.rating}</span>
+
+            <div className="flex items-end justify-between pt-2 sm:pt-4 border-t border-stone-100 mt-auto">
+              <div>
+                <span className="text-lg sm:text-xl font-heading font-bold text-emerald-600">${walker.price_per_walk?.toLocaleString()}</span>
+                <span className="text-stone-400 text-xs ml-1">/paseo</span>
+              </div>
+              <Button
+                size="sm"
+                className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full text-xs h-8 px-3 sm:px-4 sm:h-9"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/paseadores/${walker.id}`);
+                }}
+              >
+                Ver
+              </Button>
             </div>
-          </div>
-
-          <p className="text-stone-600 text-sm mb-4 line-clamp-2">{walker.bio}</p>
-
-          <div className="flex flex-wrap gap-2 mb-4">
-            {walker.verification_status === 'pending' && (
-              <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 rounded-full text-xs">
-                ⏳ Pendiente
-              </Badge>
-            )}
-            {walker.verified && (
-              <Badge className="bg-sky-100 text-sky-700 hover:bg-sky-100 rounded-full text-xs" data-testid="verified-badge">
-                <CheckCircle2 className="w-3 h-3 mr-1" />
-                Verificado
-              </Badge>
-            )}
-            {walker.insured && (
-              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 rounded-full text-xs" data-testid="insured-badge">
-                <Shield className="w-3 h-3 mr-1" />
-                Asegurado
-              </Badge>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between pt-4 border-t border-stone-100">
-            <div>
-              <span className="text-2xl font-heading font-bold text-stone-900">${walker.price_per_walk?.toLocaleString()}</span>
-              <span className="text-stone-500 text-sm">/paseo</span>
-            </div>
-            <Button
-              className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/paseadores/${walker.id}`);
-              }}
-              data-testid={`view-walker-btn-${walker.id}`}
-            >
-              Ver Perfil
-            </Button>
           </div>
         </div>
       </CardContent>
@@ -120,68 +134,70 @@ const Explore = () => {
 
   const DaycareCard = ({ daycare }) => (
     <Card
-      className="rounded-3xl border-stone-100 hover:shadow-lg transition-all cursor-pointer card-hover"
+      className="rounded-2xl border-stone-100 hover:shadow-lg transition-all cursor-pointer card-hover overflow-hidden h-full"
       onClick={() => navigate(`/guarderias/${daycare.id}`)}
       data-testid={`daycare-card-${daycare.id}`}
     >
-      <CardContent className="p-0">
-        <div className="aspect-video bg-gradient-to-br from-emerald-100 to-stone-100 rounded-t-3xl overflow-hidden">
-          {daycare.gallery_images && daycare.gallery_images.length > 0 ? (
-            <img src={daycare.gallery_images[0]} alt={daycare.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-6xl">🏠</div>
-          )}
-        </div>
-        <div className="p-6">
-          <div className="flex items-start justify-between mb-3">
+      <CardContent className="p-0 flex flex-col h-full">
+        <div className="flex sm:block h-full">
+          {/* Image Side */}
+          <div className="w-1/3 sm:w-full aspect-[4/5] sm:aspect-video bg-stone-100 relative shrink-0">
+            {daycare.gallery_images && daycare.gallery_images.length > 0 ? (
+              <img src={daycare.gallery_images[0]} alt={daycare.name} className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-4xl sm:text-6xl bg-gradient-to-br from-emerald-50 to-emerald-100/50">🏠</div>
+            )}
+            <div className="absolute top-2 left-2 sm:hidden flex items-center gap-1 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-lg shadow-sm">
+              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+              <span className="text-xs font-bold text-stone-900">{daycare.rating}</span>
+            </div>
+          </div>
+
+          {/* Content Side */}
+          <div className="w-2/3 sm:w-full p-3 sm:p-5 flex flex-col justify-between">
             <div>
-              <h3 className="font-heading font-bold text-xl text-stone-900 mb-1">{daycare.name}</h3>
-              <div className="flex items-center gap-1 text-sm text-stone-600">
-                <MapPin className="w-4 h-4" />
-                {daycare.location_name}
+              <div className="flex items-start justify-between mb-1 sm:mb-2">
+                <div>
+                  <h3 className="font-heading font-bold text-lg sm:text-xl text-stone-900 leading-tight">{daycare.name}</h3>
+                  <div className="flex items-center gap-1 text-xs text-stone-500 mt-0.5">
+                    <MapPin className="w-3 h-3" />
+                    <span className="truncate max-w-[120px]">{daycare.location_name}</span>
+                  </div>
+                </div>
+                <div className="hidden sm:flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <span className="text-sm font-semibold text-amber-700">{daycare.rating}</span>
+                </div>
+              </div>
+
+              <p className="text-stone-600 text-xs sm:text-sm mb-3 line-clamp-2 leading-relaxed">{daycare.description}</p>
+
+              <div className="flex flex-wrap gap-1.5 mb-3 hidden min-[370px]:flex">
+                {daycare.has_cameras && (
+                  <Badge className="bg-purple-50 text-purple-700 border-0 px-1.5 py-0.5 text-[10px]">📹 Cámaras</Badge>
+                )}
+                {daycare.has_green_areas && (
+                  <Badge className="bg-green-50 text-green-700 border-0 px-1.5 py-0.5 text-[10px]">🌳 Zonas</Badge>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full">
-              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-              <span className="text-sm font-semibold text-amber-700">{daycare.rating}</span>
+
+            <div className="flex items-end justify-between pt-2 sm:pt-4 border-t border-stone-100 mt-auto">
+              <div>
+                <span className="text-lg sm:text-xl font-heading font-bold text-emerald-600">${daycare.price_per_day?.toLocaleString()}</span>
+                <span className="text-stone-400 text-xs ml-1">/día</span>
+              </div>
+              <Button
+                size="sm"
+                className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full text-xs h-8 px-3 sm:px-4 sm:h-9"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/guarderias/${daycare.id}`);
+                }}
+              >
+                Ver
+              </Button>
             </div>
-          </div>
-
-          <p className="text-stone-600 text-sm mb-4 line-clamp-2">{daycare.description}</p>
-
-          <div className="flex flex-wrap gap-2 mb-4">
-            {daycare.has_cameras && (
-              <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100 rounded-full text-xs">
-                📹 Cámaras 24/7
-              </Badge>
-            )}
-            {daycare.has_green_areas && (
-              <Badge className="bg-green-100 text-green-700 hover:bg-green-100 rounded-full text-xs">
-                🌳 Zonas Verdes
-              </Badge>
-            )}
-            {daycare.has_transportation && (
-              <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 rounded-full text-xs">
-                🚗 Transporte
-              </Badge>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between pt-4 border-t border-stone-100">
-            <div>
-              <span className="text-2xl font-heading font-bold text-stone-900">${daycare.price_per_day?.toLocaleString()}</span>
-              <span className="text-stone-500 text-sm">/día</span>
-            </div>
-            <Button
-              className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/guarderias/${daycare.id}`);
-              }}
-              data-testid={`view-daycare-btn-${daycare.id}`}
-            >
-              Ver Perfil
-            </Button>
           </div>
         </div>
       </CardContent>
@@ -190,76 +206,71 @@ const Explore = () => {
 
   const VetCard = ({ vet }) => (
     <Card
-      className="rounded-3xl border-stone-100 hover:shadow-lg transition-all cursor-pointer card-hover"
+      className="rounded-2xl border-stone-100 hover:shadow-lg transition-all cursor-pointer card-hover overflow-hidden h-full"
       onClick={() => navigate(`/veterinarios/${vet.id}`)}
       data-testid={`vet-card-${vet.id}`}
     >
-      <CardContent className="p-0">
-        <div className="aspect-square bg-gradient-to-br from-blue-100 to-stone-100 rounded-t-3xl overflow-hidden">
-          {vet.profile_image ? (
-            <img src={vet.profile_image} alt={vet.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-6xl">⚕️</div>
-          )}
-        </div>
-        <div className="p-6">
-          <div className="flex items-start justify-between mb-3">
+      <CardContent className="p-0 flex flex-col h-full">
+        <div className="flex sm:block h-full">
+          {/* Image Side */}
+          <div className="w-1/3 sm:w-full aspect-[4/5] sm:aspect-square bg-stone-100 relative shrink-0">
+            {vet.profile_image ? (
+              <img src={vet.profile_image} alt={vet.name} className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-4xl sm:text-6xl bg-gradient-to-br from-blue-50 to-blue-100/50">⚕️</div>
+            )}
+            <div className="absolute top-2 left-2 sm:hidden flex items-center gap-1 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-lg shadow-sm">
+              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+              <span className="text-xs font-bold text-stone-900">{vet.rating || "N/A"}</span>
+            </div>
+          </div>
+
+          {/* Content Side */}
+          <div className="w-2/3 sm:w-full p-3 sm:p-5 flex flex-col justify-between">
             <div>
-              <h3 className="font-heading font-bold text-xl text-stone-900 mb-1">{vet.name}</h3>
-              <div className="flex items-center gap-1 text-sm text-stone-600">
-                <MapPin className="w-4 h-4" />
-                {vet.location_name}
+              <div className="flex items-start justify-between mb-1 sm:mb-2">
+                <div>
+                  <h3 className="font-heading font-bold text-lg sm:text-xl text-stone-900 leading-tight">{vet.name}</h3>
+                  <div className="flex items-center gap-1 text-xs text-stone-500 mt-0.5">
+                    <MapPin className="w-3 h-3" />
+                    <span className="truncate max-w-[100px]">{vet.location_name}</span>
+                  </div>
+                </div>
+                <div className="hidden sm:flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <span className="text-sm font-semibold text-amber-700">{vet.rating || "N/A"}</span>
+                </div>
               </div>
+
+              <div className="flex flex-wrap gap-1 mb-2 sm:mb-4 h-6 sm:h-auto overflow-hidden">
+                {vet.specialties && vet.specialties.slice(0, 2).map((spec, i) => (
+                  <Badge key={i} className="bg-purple-50 text-purple-700 border-0 text-[10px] px-1.5">
+                    {spec}
+                  </Badge>
+                ))}
+              </div>
+
+              <p className="text-stone-600 text-xs sm:text-sm mb-3 line-clamp-2 leading-relaxed">{vet.bio}</p>
             </div>
-            <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-full">
-              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-              <span className="text-sm font-semibold text-amber-700">{vet.rating || "N/A"}</span>
+
+            <div className="flex items-end justify-between pt-2 sm:pt-4 border-t border-stone-100 mt-auto">
+              <div>
+                <span className="text-lg sm:text-xl font-heading font-bold text-stone-900">
+                  {vet.rates?.consultation ? `$${vet.rates.consultation.toLocaleString()}` : "A convenir"}
+                </span>
+                <span className="text-stone-400 text-xs block">/consulta</span>
+              </div>
+              <Button
+                size="sm"
+                className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full text-xs h-8 px-3 sm:px-4 sm:h-9"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/veterinarios/${vet.id}`);
+                }}
+              >
+                Ver
+              </Button>
             </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2 mb-4 h-12 overflow-hidden">
-            {vet.specialties && vet.specialties.slice(0, 2).map((spec, i) => (
-              <Badge key={i} className="bg-purple-50 text-purple-700 border-0 text-xs">
-                {spec}
-              </Badge>
-            ))}
-            {vet.specialties && vet.specialties.length > 2 && (
-              <Badge className="bg-stone-100 text-stone-600 border-0 text-xs">+{vet.specialties.length - 2}</Badge>
-            )}
-          </div>
-
-          <p className="text-stone-600 text-sm mb-4 line-clamp-2">{vet.bio}</p>
-
-          <div className="flex flex-wrap gap-2 mb-4">
-            <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50 rounded-full text-xs">
-              <Stethoscope className="w-3 h-3 mr-1" />
-              {vet.experience_years} años exp
-            </Badge>
-            {vet.home_visit_available && (
-              <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 rounded-full text-xs">
-                <Home className="w-3 h-3 mr-1" />
-                Domicilio
-              </Badge>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between pt-4 border-t border-stone-100">
-            <div>
-              <span className="text-xl font-heading font-bold text-stone-900">
-                {vet.rates?.consultation ? `$${vet.rates.consultation.toLocaleString()}` : "A convenir"}
-              </span>
-              <span className="text-stone-500 text-xs block">/consulta</span>
-            </div>
-            <Button
-              className="bg-[#28B463] text-white hover:bg-[#78C494] rounded-full text-sm h-9"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/veterinarios/${vet.id}`);
-              }}
-              data-testid={`view-vet-btn-${vet.id}`}
-            >
-              Ver Perfil
-            </Button>
           </div>
         </div>
       </CardContent>

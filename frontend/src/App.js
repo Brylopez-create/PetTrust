@@ -18,11 +18,13 @@ import Register from './pages/Register';
 import CreateProfile from './pages/CreateProfile';
 import WalkersLanding from './pages/WalkersLanding';
 import Benefits from './pages/Benefits';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 import { Capacitor } from '@capacitor/core';
 import Onboarding from './pages/Onboarding';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 export const API = `${BACKEND_URL}/api`;
 
 export const AuthContext = React.createContext(null);
@@ -103,6 +105,8 @@ function App() {
           <Route path="/admin/payments" element={user ? <AdminPaymentDashboard /> : <Navigate to="/login" />} />
           <Route path="/tracking/:bookingId" element={user ? <Tracking /> : <Navigate to="/login" />} />
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/registro" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
         </Routes>
       </BrowserRouter>
