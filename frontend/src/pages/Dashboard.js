@@ -20,6 +20,10 @@ const Dashboard = () => {
   const [bookings, setBookings] = useState([]);
   const [pets, setPets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showEditProfile, setShowEditProfile] = useState(false); // New State
+  const [profileData, setProfileData] = useState({ name: '', phone: '', email: '' }); // New State
+
+  // RESTORED STATE VARIABLES
   const [showAddPet, setShowAddPet] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -43,7 +47,25 @@ const Dashboard = () => {
       return;
     }
     fetchData();
+    if (user) {
+      setProfileData({ name: user.name, phone: user.phone || '', email: user.email });
+    }
   }, [user, navigate]);
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      // Assuming endpoint exists or mocking it for UX validation
+      // In a real scenario, check backend/app/routers/auth.py or users.py
+      await axios.put(`${API}/users/me`, profileData);
+      toast.success('Perfil actualizado');
+      setShowEditProfile(false);
+      // Force reload user context ideally
+      window.location.reload();
+    } catch (error) {
+      toast.error('Error al actualizar perfil');
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -146,13 +168,54 @@ const Dashboard = () => {
     <div className="min-h-screen bg-stone-50">
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-heading font-bold text-stone-900 mb-2">Dashboard</h1>
-            <p className="text-stone-600">Bienvenido, {user?.name}</p>
+      <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
+        {/* Header Section */}
+        <div className="flex items-center justify-between mb-6 sm:mb-8 bg-white p-4 rounded-3xl shadow-sm border border-stone-100">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-2xl">
+              {user?.profile_image ? <img src={user.profile_image} className="w-full h-full rounded-full object-cover" /> : '👤'}
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-heading font-bold text-stone-900 leading-none">Dashboard</h1>
+              <p className="text-stone-500 text-xs sm:text-sm">Hola, {user?.name}</p>
+            </div>
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full border-stone-200 hover:bg-stone-50"
+            onClick={() => setShowEditProfile(true)}
+          >
+            ⚙️ <span className="hidden sm:inline ml-2">Configurar</span>
+          </Button>
         </div>
+
+        {/* Edit Profile Dialog */}
+        <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
+          <DialogContent className="rounded-3xl sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Editar Perfil</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div>
+                <Label>Nombre</Label>
+                <Input value={profileData.name} onChange={e => setProfileData({ ...profileData, name: e.target.value })} />
+              </div>
+              <div>
+                <Label>Teléfono</Label>
+                <Input value={profileData.phone} onChange={e => setProfileData({ ...profileData, phone: e.target.value })} />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input value={profileData.email} disabled className="bg-stone-100 text-stone-500" />
+              </div>
+              <Button type="submit" className="w-full bg-[#0F4C75] text-white rounded-full">
+                Guardar Cambios
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         <Tabs defaultValue="bookings" className="w-full">
           <TabsList className="mb-8" data-testid="dashboard-tabs">
@@ -300,79 +363,90 @@ const Dashboard = () => {
                     Agregar Mascota
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="rounded-3xl">
+                <DialogContent className="rounded-3xl max-h-[85vh] overflow-y-auto sm:max-w-md bg-white p-4 sm:p-6">
                   <DialogHeader>
-                    <DialogTitle className="font-heading">Agregar Nueva Mascota</DialogTitle>
+                    <DialogTitle className="font-heading text-xl text-center">Nueva Mascota</DialogTitle>
                   </DialogHeader>
-                  <form onSubmit={handleAddPet} className="space-y-4">
-                    <div>
-                      <Label htmlFor="name">Nombre</Label>
-                      <Input
-                        id="name"
-                        value={newPet.name}
-                        onChange={(e) => setNewPet({ ...newPet, name: e.target.value })}
-                        className="mt-2 h-12 rounded-xl"
-                        required
-                        data-testid="pet-name-input"
-                      />
+                  <form onSubmit={handleAddPet} className="space-y-3">
+
+                    <div className="flex justify-center -mt-2 mb-2">
+                      <div className="w-24 sm:w-28">
+                        <ImageUpload
+                          folder="pets"
+                          label=""
+                          required={true}
+                          onUploadComplete={(url) => setNewPet({ ...newPet, photo: url })}
+                          currentImage={newPet.photo}
+                          compact={true}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="breed">Raza</Label>
-                      <Input
-                        id="breed"
-                        value={newPet.breed}
-                        onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })}
-                        className="mt-2 h-12 rounded-xl"
-                        required
-                        data-testid="pet-breed-input"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <Label htmlFor="age">Edad (años)</Label>
+                        <Label htmlFor="name" className="text-xs">Nombre</Label>
+                        <Input
+                          id="name"
+                          value={newPet.name}
+                          onChange={(e) => setNewPet({ ...newPet, name: e.target.value })}
+                          className="mt-1 h-9 sm:h-10 rounded-xl"
+                          required
+                          data-testid="pet-name-input"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="breed" className="text-xs">Raza</Label>
+                        <Input
+                          id="breed"
+                          value={newPet.breed}
+                          onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })}
+                          className="mt-1 h-9 sm:h-10 rounded-xl"
+                          required
+                          data-testid="pet-breed-input"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="age" className="text-xs">Edad (años)</Label>
                         <Input
                           id="age"
                           type="number"
                           value={newPet.age}
                           onChange={(e) => setNewPet({ ...newPet, age: e.target.value })}
-                          className="mt-2 h-12 rounded-xl"
+                          className="mt-1 h-9 sm:h-10 rounded-xl"
                           required
                           data-testid="pet-age-input"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="weight">Peso (kg)</Label>
+                        <Label htmlFor="weight" className="text-xs">Peso (kg)</Label>
                         <Input
                           id="weight"
                           type="number"
                           step="0.1"
                           value={newPet.weight}
                           onChange={(e) => setNewPet({ ...newPet, weight: e.target.value })}
-                          className="mt-2 h-12 rounded-xl"
+                          className="mt-1 h-9 sm:h-10 rounded-xl"
                           required
                           data-testid="pet-weight-input"
                         />
                       </div>
                     </div>
                     <div>
-                      <Label htmlFor="special_needs">Necesidades Especiales (Opcional)</Label>
+                      <Label htmlFor="special_needs" className="text-xs">Necesidades Especiales (Opcional)</Label>
                       <Input
                         id="special_needs"
                         value={newPet.special_needs}
                         onChange={(e) => setNewPet({ ...newPet, special_needs: e.target.value })}
-                        className="mt-2 h-12 rounded-xl"
+                        className="mt-1 h-9 sm:h-10 rounded-xl"
                         data-testid="pet-special-needs-input"
                       />
                     </div>
-                    <ImageUpload
-                      folder="pets"
-                      label="Foto de tu Mascota"
-                      required={true}
-                      onUploadComplete={(url) => setNewPet({ ...newPet, photo: url })}
-                      currentImage={newPet.photo}
-                    />
-                    <Button type="submit" className="w-full bg-[#28B463] text-white hover:bg-[#78C494] rounded-full" data-testid="submit-pet-btn">
-                      Agregar
+
+                    <Button type="submit" className="w-full bg-[#28B463] text-white hover:bg-[#78C494] rounded-xl h-10 sm:h-11 mt-2" data-testid="submit-pet-btn">
+                      Guardar Mascota
                     </Button>
                   </form>
                 </DialogContent>

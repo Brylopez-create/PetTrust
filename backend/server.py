@@ -21,8 +21,7 @@ import random
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+import resend
 import asyncio
 
 ROOT_DIR = Path(__file__).parent
@@ -104,24 +103,29 @@ async def upload_image_internal(data_or_file: Any, folder: str, user_id: str) ->
         return None
 
 async def send_email(to_email: str, subject: str, html_content: str):
-    api_key = os.environ.get("SENDGRID_API_KEY")
-    sender_email = os.environ.get("MAIL_FROM", "noreply@pettrust.co")
+    api_key = os.environ.get("RESEND_API_KEY")
+    sender_email = os.environ.get("MAIL_FROM", "onboarding@resend.dev")
     
     if not api_key:
-        # Just log if no key, don't crash
-        logging.warning("No SENDGRID_API_KEY. Email not sent.")
+        logging.warning("No RESEND_API_KEY. Email not sent.")
         return
 
-    message = Mail(
-        from_email=sender_email,
-        to_emails=to_email,
-        subject=subject,
-        html_content=html_content
-    )
+    resend.api_key = api_key
+
     try:
-        sg = SendGridAPIClient(api_key)
+        # Resend SDK is synchronous, wrapped in executor for async compatibility if needed,
+        # but for simple calls usually fine. Best practice is run_in_executor to avoid blocking.
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, sg.send, message)
+        
+        def _send():
+            return resend.Emails.send({
+                "from": sender_email,
+                "to": to_email,
+                "subject": subject,
+                "html": html_content
+            })
+
+        await loop.run_in_executor(None, _send)
         logging.info(f"Email sent to {to_email} from {sender_email}")
     except Exception as e:
         logging.error(f"Error sending email: {e}")
@@ -408,6 +412,19 @@ class ManualPayment(BaseModel):
     proof_url: str
     status: str = "pending"  # pending, approved, rejected
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class ManualPaymentCreate(BaseModel):
+    booking_id: str
+    amount: float
+    payment_method: str
+    proof_url: str
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
 
 class Review(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -840,6 +857,65 @@ async def login(credentials: UserLogin, request: Request):
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
+
+@api_router.post("/auth/request-password-reset")
+async def request_password_reset(request: PasswordResetRequest):
+    user = await db.users.find_one({"email": request.email})
+    if not user:
+        # Prevent user enumeration, pretend success
+        return {"message": "Si el correo existe, se enviará un enlace de recuperación."}
+    
+    reset_token = secrets.token_urlsafe(32)
+    await db.password_resets.insert_one({
+        "email": user["email"],
+        "token": reset_token,
+        "created_at": datetime.now(timezone.utc),
+        "used": False
+    })
+    
+    # Use frontend URL (assumed generic for now, user can configure)
+    reset_link = f"https://pettrust.vercel.app/reset-password?token={reset_token}"
+    
+    html = f"""
+    <div style="font-family: Arial, sans-serif; color: #333;">
+        <h2 style="color: #0F4C75;">Recuperación de Contraseña</h2>
+        <p>Hola,</p>
+        <p>Has solicitado restablecer tu contraseña en PetTrust.</p>
+        <p>Haz clic en el siguiente enlace para crear una nueva contraseña:</p>
+        <br>
+        <a href="{reset_link}" style="background-color: #28B463; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Restablecer Contraseña</a>
+        <br><br>
+        <p style="font-size: 12px; color: #777;">Si no solicitaste este cambio, puedes ignorar este correo.</p>
+    </div>
+    """
+    
+    asyncio.create_task(send_email(user["email"], "Recuperación de Contraseña - PetTrust", html))
+    return {"message": "Si el correo existe, se enviará un enlace de recuperación."}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(data: PasswordResetConfirm):
+    record = await db.password_resets.find_one({"token": data.token, "used": False})
+    if not record:
+        raise HTTPException(status_code=400, detail="Token inválido o expirado")
+        
+    # Check expiration (e.g., 1 hour)
+    created_at = record["created_at"].replace(tzinfo=timezone.utc)
+    if (datetime.now(timezone.utc) - created_at).total_seconds() > 3600:
+        raise HTTPException(status_code=400, detail="Token expirado")
+        
+    hashed_pw = hash_password(data.new_password)
+    
+    await db.users.update_one(
+        {"email": record["email"]}, 
+        {"$set": {"password": hashed_pw}}
+    )
+    
+    await db.password_resets.update_one(
+        {"token": data.token},
+        {"$set": {"used": True}}
+    )
+    
+    return {"message": "Contraseña actualizada exitosamente"}
 
 # ============= PROSPECT ENDPOINTS =============
 
@@ -2260,6 +2336,36 @@ async def get_provider_schedule(
     }
 
 # ============= MANUAL PAYMENTS ENDPOINTS =============
+
+@api_router.post("/payments/register_manual")
+async def register_manual_payment(
+    payment_data: ManualPaymentCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    booking = await db.bookings.find_one({
+        "id": payment_data.booking_id,
+        "owner_id": current_user["id"]
+    }, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+        
+    payment = ManualPayment(
+        booking_id=payment_data.booking_id,
+        user_id=current_user["id"],
+        amount=payment_data.amount,
+        payment_method=payment_data.payment_method,
+        proof_url=payment_data.proof_url
+    )
+    
+    await db.manual_payments.insert_one(payment.model_dump())
+    
+    # Update booking status
+    await db.bookings.update_one(
+        {"id": payment_data.booking_id},
+        {"$set": {"status": "awaiting_approval", "payment_status": "pending_approval"}}
+    )
+    
+    return payment
 
 @api_router.post("/payments/submit")
 async def submit_manual_payment(

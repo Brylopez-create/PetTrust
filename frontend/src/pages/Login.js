@@ -73,6 +73,11 @@ const Login = () => {
                 required
                 data-testid="login-password-input"
               />
+              <div className="flex justify-end mt-1">
+                <Link to="/forgot-password" className="text-sm text-[#0F4C75] hover:underline font-medium">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
             </div>
 
             <Button

@@ -74,7 +74,7 @@ Click en "Variables" y agrega:
 
 ```bash
 # MongoDB (tu connection string de Atlas)
-MONGO_URL=mongodb+srv://pettrust_admin:TuPassword@pettrust.xxxxx.mongodb.net/?retryWrites=true&w=majority
+MONGO_URL=mongodb+srv://<usuario>:<password>@pettrust.xxxxx.mongodb.net/?retryWrites=true&w=majority
 
 # Nombre de base de datos
 DB_NAME=pettrust_production

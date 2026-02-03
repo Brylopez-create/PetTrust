@@ -76,7 +76,7 @@ const SafetyCenter = ({ bookingId, onClose }) => {
       toast.error('No hay reserva activa para compartir');
       return;
     }
-    
+
     setLoading(true);
     try {
       const response = await axios.post(`${API}/bookings/${bookingId}/share-trip`);
@@ -94,7 +94,7 @@ const SafetyCenter = ({ bookingId, onClose }) => {
       toast.error('No hay reserva activa');
       return;
     }
-    
+
     setLoading(true);
     try {
       const response = await axios.post(`${API}/bookings/${bookingId}/generate-pin`);
@@ -112,7 +112,7 @@ const SafetyCenter = ({ bookingId, onClose }) => {
       toast.error('Ingresa un PIN de 4 dígitos');
       return;
     }
-    
+
     setLoading(true);
     try {
       await axios.post(`${API}/bookings/${bookingId}/verify-pin?pin_code=${verifyPin}`);
@@ -147,7 +147,7 @@ const SafetyCenter = ({ bookingId, onClose }) => {
               longitude: position.coords.longitude
             }
           });
-          
+
           toast.error(
             `🚨 ALERTA SOS ACTIVADA\nContactos notificados\nPolicia: ${response.data.emergency_number}`,
             { duration: 10000 }
@@ -168,34 +168,50 @@ const SafetyCenter = ({ bookingId, onClose }) => {
   };
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
-          <Shield className="w-6 h-6 text-white" />
+    <div className="space-y-4 p-4 sm:p-6">
+      <div className="flex items-center gap-3 mb-2 sm:mb-6">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center shrink-0">
+          <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </div>
         <div>
-          <h2 className="text-2xl font-heading font-bold text-stone-900">Centro de Seguridad</h2>
-          <p className="text-stone-600 text-sm">Tu seguridad es nuestra prioridad</p>
+          <h2 className="text-xl sm:text-2xl font-heading font-bold text-stone-900">Centro de Seguridad</h2>
+          <p className="text-stone-600 text-xs sm:text-sm">Tu seguridad es nuestra prioridad</p>
         </div>
       </div>
 
+      <Card className="rounded-2xl border-red-200 bg-red-50 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <Button
+            onClick={handleSOS}
+            className="w-full h-12 sm:h-16 bg-red-500 text-white hover:bg-red-600 rounded-xl text-base sm:text-lg font-bold shadow-md active:scale-95 transition-transform"
+            data-testid="sos-button"
+          >
+            <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 mr-2 animate-pulse" />
+            EMERGENCIA SOS
+          </Button>
+          <p className="text-[10px] sm:text-xs text-stone-600 text-center mt-2 font-medium">
+            Presiona solo en caso de emergencia real
+          </p>
+        </CardContent>
+      </Card>
+
       {safetyStatus && (
         <Card className="rounded-2xl border-stone-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <span className="font-semibold text-stone-900">Estado de Seguridad</span>
-              <Badge 
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <span className="font-semibold text-stone-900 text-sm sm:text-base">Estado de Seguridad</span>
+              <Badge
                 className={
                   safetyStatus.safety_score === 'high' ? 'bg-emerald-100 text-emerald-700' :
-                  safetyStatus.safety_score === 'medium' ? 'bg-amber-100 text-amber-700' :
-                  'bg-red-100 text-red-700'
+                    safetyStatus.safety_score === 'medium' ? 'bg-amber-100 text-amber-700' :
+                      'bg-red-100 text-red-700'
                 }
               >
-                {safetyStatus.safety_score === 'high' ? 'Seguro' : 
-                 safetyStatus.safety_score === 'medium' ? 'Normal' : 'Alerta'}
+                {safetyStatus.safety_score === 'high' ? 'Seguro' :
+                  safetyStatus.safety_score === 'medium' ? 'Normal' : 'Alerta'}
               </Badge>
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-3 text-xs sm:text-sm">
               <div className="flex items-center gap-2">
                 <CheckCircle className={safetyStatus.pin_verified ? 'w-4 h-4 text-[#28B463]' : 'w-4 h-4 text-stone-300'} />
                 <span>PIN Verificado</span>
@@ -209,177 +225,166 @@ const SafetyCenter = ({ bookingId, onClose }) => {
         </Card>
       )}
 
-      <Card className="rounded-2xl border-red-200 bg-red-50">
-        <CardContent className="p-6">
-          <Button
-            onClick={handleSOS}
-            className="w-full h-16 bg-red-500 text-white hover:bg-red-600 rounded-xl text-lg font-bold shadow-lg"
-            data-testid="sos-button"
-          >
-            <AlertTriangle className="w-6 h-6 mr-2" />
-            🚨 EMERGENCIA SOS
-          </Button>
-          <p className="text-xs text-stone-600 text-center mt-2">
-            Presiona solo en caso de emergencia real
-          </p>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card className="rounded-2xl border-stone-200">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Share2 className="w-4 h-4 text-[#28B463]" />
+              <span className="font-semibold text-stone-900 text-sm">Compartir Paseo</span>
+            </div>
 
-      <Card className="rounded-2xl border-stone-200">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Share2 className="w-5 h-5 text-[#28B463]" />
-            <span className="font-semibold text-stone-900">Compartir Paseo</span>
-          </div>
-          
-          {!shareLink ? (
-            <Button
-              onClick={handleShareTrip}
-              disabled={loading || !bookingId}
-              className="w-full bg-[#28B463] text-white hover:bg-[#78C494] rounded-xl"
-            >
-              Generar Link de Seguimiento
-            </Button>
-          ) : (
-            <div className="space-y-3">
-              <div className="bg-stone-100 p-4 rounded-xl break-all">
-                <p className="text-xs text-stone-600 mb-1">Link:</p>
-                <p className="text-sm font-mono">{shareLink.share_url}</p>
-              </div>
+            {!shareLink ? (
               <Button
-                onClick={() => copyToClipboard(shareLink.share_url)}
-                variant="outline"
-                className="w-full rounded-xl"
+                onClick={handleShareTrip}
+                disabled={loading || !bookingId}
+                size="sm"
+                className="w-full bg-[#28B463] text-white hover:bg-[#78C494] rounded-lg text-xs h-9"
               >
-                <Copy className="w-4 h-4 mr-2" />
-                Copiar Link
+                Generar Link
               </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-2xl border-stone-200">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <CheckCircle className="w-5 h-5 text-purple-600" />
-            <span className="font-semibold text-stone-900">Verificación PIN</span>
-          </div>
-          
-          {user?.role === 'owner' ? (
-            <div className="space-y-3">
-              {!pin ? (
+            ) : (
+              <div className="space-y-2">
                 <Button
-                  onClick={handleGeneratePin}
-                  disabled={loading || !bookingId}
-                  className="w-full bg-purple-400 text-white hover:bg-purple-500 rounded-xl"
+                  onClick={() => copyToClipboard(shareLink.share_url)}
+                  variant="outline"
+                  size="sm"
+                  className="w-full rounded-lg text-xs"
                 >
-                  Generar PIN de Seguridad
-                </Button>
-              ) : (
-                <div className="bg-purple-50 p-6 rounded-xl text-center">
-                  <p className="text-sm text-stone-600 mb-2">Tu PIN:</p>
-                  <p className="text-4xl font-bold text-purple-600 tracking-widest">{pin}</p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <Label>Ingresa el PIN del dueño</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  maxLength={4}
-                  value={verifyPin}
-                  onChange={(e) => setVerifyPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="1234"
-                  className="text-2xl text-center tracking-widest h-14 rounded-xl"
-                />
-                <Button
-                  onClick={handleVerifyPin}
-                  disabled={loading || verifyPin.length !== 4}
-                  className="bg-purple-400 text-white hover:bg-purple-500 rounded-xl px-6"
-                >
-                  Verificar
+                  <Copy className="w-3 h-3 mr-2" />
+                  Copiar Link
                 </Button>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-stone-200">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle className="w-4 h-4 text-purple-600" />
+              <span className="font-semibold text-stone-900 text-sm">Verificación PIN</span>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {user?.role === 'owner' ? (
+              <div className="space-y-2">
+                {!pin ? (
+                  <Button
+                    onClick={handleGeneratePin}
+                    disabled={loading || !bookingId}
+                    size="sm"
+                    className="w-full bg-purple-400 text-white hover:bg-purple-500 rounded-lg text-xs h-9"
+                  >
+                    Generar PIN
+                  </Button>
+                ) : (
+                  <div className="bg-purple-50 p-2 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-purple-600 tracking-widest">{pin}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    maxLength={4}
+                    value={verifyPin}
+                    onChange={(e) => setVerifyPin(e.target.value.replace(/\D/g, ''))}
+                    placeholder="PIN"
+                    className="text-lg text-center tracking-widest h-9 rounded-lg"
+                  />
+                  <Button
+                    onClick={handleVerifyPin}
+                    disabled={loading || verifyPin.length !== 4}
+                    size="sm"
+                    className="bg-purple-400 text-white hover:bg-purple-500 rounded-lg px-3 h-9"
+                  >
+                    OK
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
 
       <Card className="rounded-2xl border-stone-200">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Users className="w-5 h-5 text-sky-600" />
-              <span className="font-semibold text-stone-900">Contactos de Emergencia</span>
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-sky-600" />
+              <span className="font-semibold text-stone-900 text-sm">Contactos Emergencia</span>
             </div>
             <Button
               onClick={() => setShowAddContact(!showAddContact)}
               size="sm"
               variant="ghost"
-              className="text-[#28B463]"
+              className="text-[#28B463] h-8 text-xs p-0 hover:bg-transparent"
             >
-              + Agregar
+              {showAddContact ? 'Cancelar' : '+ Agregar'}
             </Button>
           </div>
 
           {showAddContact && (
-            <form onSubmit={handleAddContact} className="space-y-3 mb-4 p-4 bg-stone-50 rounded-xl">
+            <form onSubmit={handleAddContact} className="space-y-2 mb-3 p-3 bg-stone-50 rounded-xl transition-all">
               <Input
                 placeholder="Nombre"
                 value={newContact.name}
                 onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
                 required
+                className="h-9 text-sm"
               />
               <Input
-                placeholder="Teléfono (ej: +57 300 123 4567)"
+                placeholder="Teléfono"
                 value={newContact.phone}
                 onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
                 required
+                className="h-9 text-sm"
               />
               <Input
-                placeholder="Relación (ej: Hermana, Amigo)"
+                placeholder="Relación"
                 value={newContact.relationship}
                 onChange={(e) => setNewContact({ ...newContact, relationship: e.target.value })}
                 required
+                className="h-9 text-sm"
               />
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-sky-400 text-white hover:bg-sky-500 rounded-xl"
+                size="sm"
+                className="w-full bg-sky-400 text-white hover:bg-sky-500 rounded-lg h-9"
               >
-                Guardar Contacto
+                Guardar
               </Button>
             </form>
           )}
 
-          {emergencyContacts.length === 0 ? (
-            <p className="text-stone-500 text-sm text-center py-4">
-              No tienes contactos de emergencia
+          {emergencyContacts.length === 0 && !showAddContact ? (
+            <p className="text-stone-400 text-xs text-center py-2">
+              Sin contactos guardados
             </p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-32 overflow-y-auto">
               {emergencyContacts.map((contact) => (
                 <div
                   key={contact.id}
-                  className="flex items-center justify-between p-3 bg-stone-50 rounded-xl"
+                  className="flex items-center justify-between p-2 bg-stone-50 rounded-lg border border-stone-100"
                 >
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-4 h-4 text-stone-500" />
-                    <div>
-                      <p className="font-semibold text-sm text-stone-900">{contact.name}</p>
-                      <p className="text-xs text-stone-500">{contact.relationship} • {contact.phone}</p>
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <Phone className="w-3 h-3 text-stone-400 shrink-0" />
+                    <div className="truncate">
+                      <p className="font-medium text-xs text-stone-900 truncate">{contact.name}</p>
+                      <p className="text-[10px] text-stone-500 truncate">{contact.relationship}</p>
                     </div>
                   </div>
                   <Button
                     onClick={() => handleDeleteContact(contact.id)}
                     size="sm"
                     variant="ghost"
-                    className="text-red-500 hover:text-red-700"
+                    className="text-red-500 hover:text-red-700 h-6 w-6 p-0 rounded-full"
                   >
-                    Eliminar
+                    ×
                   </Button>
                 </div>
               ))}
@@ -391,8 +396,8 @@ const SafetyCenter = ({ bookingId, onClose }) => {
       {onClose && (
         <Button
           onClick={onClose}
-          variant="outline"
-          className="w-full rounded-xl"
+          variant="ghost"
+          className="w-full rounded-xl h-10 text-stone-500"
         >
           Cerrar
         </Button>
