@@ -391,3 +391,10 @@ class ShareTripLink(BaseModel):
     share_code: str
     expires_at: str
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class PetMatchRequest(BaseModel):
+    pet_id: str
+    lat: float
+    lng: float
+    date: str
+    time: str

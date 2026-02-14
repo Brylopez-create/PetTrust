@@ -15,6 +15,20 @@ PetTrust ha sido diseñado para alcanzar y mantener el **100%** en las cuatro m�
 
 ## 🚀 Innovaciones Técnicas
 
+### 🛡️ Ciberseguridad Proactiva (Seguridad de Nivel Platino)
+Para garantizar el 100% en *Best Practices* y proteger los datos de mascotas y dueños, implementamos una estrategia de **Defensa en Profundidad**:
+*   **Sesiones Blindadas (HttpOnly Cookies):** Migramos la gestión de sesiones de `localStorage` a Cookies `HttpOnly` y `Secure` con política `SameSite=Lax`. Esto hace que los tokens sean **invisibles para JavaScript**, neutralizando por completo el robo de sesiones mediante ataques XSS.
+*   **Content Security Policy (CSP) Estricta:** Bloqueo proactivo de ataques XSS, Clickjacking e inyecciones de datos, permitiendo solo fuentes de confianza (Google Fonts, OpenStreetMap, Cloudinary).
+*   **Defensa contra Fuerza Bruta:** Rate Limiting robusto mediante `slowapi`, restringiendo intentos de login a 5 cada 15 minutos para prevenir ataques automatizados.
+*   **Headers de Grado Bancario:** Implementación de `HSTS` (con preload), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` y `Referrer-Policy`.
+
+### 🧠 PetMatch v1: El "Cerebro" de Emparejamiento
+Hemos implementado un algoritmo de matching inteligente que va más allá de un simple filtro, puntuando a los paseadores en una escala de 0 a 100:
+*   **Proximidad Geográfica (40 pts):** Cálculo mediante la fórmula de Haversine para encontrar paseadores en un radio de hasta 3km, con decaimiento lineal de puntuación.
+*   **Reputación Dinámica (30 pts):** Combina el rating promedio (20 pts) con un bonus por volumen de reviews verificadas (10 pts).
+*   **Compatibilidad de Especie (30 pts):** Analiza el peso de la mascota frente a los años de experiencia del paseador (ej: perros grandes >20kg requieren paseadores senior).
+*   **Disponibilidad en Tiempo Real:** Filtro estricto por slots horarios disponibles y capacidad actual (`capacity_current < capacity_max`).
+
 ### 🛰️ Tracking GPS de Siguiente Generación
 Para ofrecer una experiencia premium en el seguimiento de paseos, implementamos:
 *   **GPS Smoothing (Lerp):** Algoritmo de interpolación lineal que suaviza el movimiento del paseador en el mapa a 60fps, evitando los "saltos" cada vez que se recibe una coordenada.

@@ -31,6 +31,9 @@ startPerformanceMonitoring();
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 export const API = `${BACKEND_URL}/api`;
 
+// Configuración de Seguridad: Permitir envío de Cookies HttpOnly (Defensa de Platino)
+axios.defaults.withCredentials = true;
+
 export const AuthContext = React.createContext(null);
 
 function App() {
@@ -42,12 +45,13 @@ function App() {
   const isMobileApp = Capacitor.isNativePlatform() || window.matchMedia('(display-mode: standalone)').matches;
 
   useEffect(() => {
+    // Soporte híbrido: Authorization Header (App Móvil) y Cookies HttpOnly (Web/PWA)
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      fetchUser();
-    } else {
-      setLoading(false);
     }
+
+    // Intentar recuperar sesión automáticamente al cargar
+    fetchUser();
   }, [token]);
 
   const fetchUser = async () => {
@@ -69,11 +73,18 @@ function App() {
     axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    delete axios.defaults.headers.common['Authorization'];
+  const logout = async () => {
+    try {
+      // Notificar al backend para limpiar la Cookie HttpOnly
+      await axios.post(`${API}/auth/logout`);
+    } catch (error) {
+      console.error('Error during backend logout:', error);
+    } finally {
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+      delete axios.defaults.headers.common['Authorization'];
+    }
   };
 
   if (loading) {
