@@ -23,6 +23,10 @@ import ResetPassword from './pages/ResetPassword';
 
 import { Capacitor } from '@capacitor/core';
 import Onboarding from './pages/Onboarding';
+import { startPerformanceMonitoring } from './utils/performanceMonitor';
+
+// Iniciar monitoreo de métricas de rendimiento (Core Web Vitals)
+startPerformanceMonitoring();
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 export const API = `${BACKEND_URL}/api`;

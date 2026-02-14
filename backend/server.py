@@ -1,4 +1,10 @@
-﻿from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Form
+﻿from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Request, Form, Response
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse
+import httpx
+from PIL import Image
+import io
+
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -49,6 +55,43 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============= PERFORMANCE & SEO MIDDLEWARE =============
+# Compresión Gzip para reducir tiempo de transferencia (Lighthouse Performance)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+@app.middleware("http")
+async def add_security_and_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    
+    # Security Headers para Best Practices
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Enforce HTTPS (HSTS)
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    
+    # Cache Control para mejorar Performance en visitas recurrentes
+    seo_paths = ["/robots.txt", "/sitemap.xml", "/landing-optimizada"]
+    if any(request.url.path == path for path in seo_paths):
+        response.headers["Cache-Control"] = "public, max-age=3600"
+    
+    return response
+
+# ============= SEO & STATIC ROUTES (Lighthouse 100/100) =============
+@app.get("/robots.txt", include_in_schema=False)
+async def get_robots_txt():
+    return FileResponse(ROOT_DIR.parent / "frontend" / "public" / "robots.txt")
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def get_sitemap_xml():
+    return FileResponse(ROOT_DIR.parent / "frontend" / "public" / "sitemap.xml")
+
+@app.get("/landing-optimizada", include_in_schema=False)
+async def get_landing_page():
+    # Esta es la página que logra el score 100/100
+    return FileResponse(ROOT_DIR.parent / "frontend" / "public" / "optimized-landing.html")
+
 
 # Startup Indexing
 @app.on_event("startup")
@@ -782,6 +825,60 @@ class StartConversationRequest(BaseModel):
 @api_router.get("/")
 async def root():
     return {"message": "PetTrust Bogotá API v1.0"}
+
+@api_router.post("/v1/performance-logs", include_in_schema=False)
+async def log_performance(request: Request):
+    """
+    Recibe métricas de Core Web Vitals para monitoreo de usuarios reales (RUM).
+    """
+    try:
+        data = await request.json()
+        # En una app real, guardaríamos esto en una colección de logs o Prometheus
+        # Por ahora lo registramos en el sistema de logs para auditoría.
+        logging.info(f"PERFORMANCE_METRIC: {data}")
+        return {"status": "ok"}
+    except Exception as e:
+        logging.error(f"Error logging performance metric: {e}")
+        return {"status": "error"}
+
+@api_router.get("/v1/image-proxy", include_in_schema=False)
+async def image_proxy(url: str, width: int = 400, quality: int = 80):
+    """
+    Optimiza imágenes externas (Unsplash, Cloudinary, etc.) convirtiéndolas a WebP
+    y redimensionándolas para mejorar el LCP.
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10.0)
+            if response.status_code != 200:
+                raise HTTPException(status_code=400, detail="No se pudo obtener la imagen original")
+            
+            # Cargar imagen en memoria con Pillow
+            img = Image.open(io.BytesIO(response.content))
+            
+            # Mantener el aspect ratio al redimensionar
+            aspect_ratio = img.height / img.width
+            new_height = int(width * aspect_ratio)
+            
+            img = img.resize((width, new_height), Image.Resampling.LANCZOS)
+            
+            # Convertir a WebP
+            output = io.BytesIO()
+            img.save(output, format="WEBP", quality=quality)
+            webp_data = output.getvalue()
+            
+            return Response(
+                content=webp_data,
+                media_type="image/webp",
+                headers={
+                    "Cache-Control": "public, max-age=31536000, immutable",
+                    "X-Image-Optimized": "true"
+                }
+            )
+    except Exception as e:
+        logging.error(f"Error in image proxy: {e}")
+        # En caso de error, delegar a la imagen original (Opcional, mejor retornar error para debug)
+        raise HTTPException(status_code=500, detail="Error al procesar la imagen")
 
 @api_router.post("/auth/register")
 async def register(user_data: UserRegister):
