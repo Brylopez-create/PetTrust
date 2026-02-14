@@ -32,7 +32,7 @@ import cloudinary.api
 import resend
 import asyncio
 import firebase_admin
-from firebase_admin import credentials, messaging
+from firebase_admin import credentials, messaging, auth
 
 # Initialize Firebase Admin SDK
 # Note: Ensure GOOGLE_APPLICATION_CREDENTIALS env var is set or use a service account json file
@@ -128,8 +128,8 @@ async def add_security_and_cache_headers(request: Request, call_next):
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
         "img-src 'self' data: https://images.unsplash.com https://*.tile.openstreetmap.org https://res.cloudinary.com https://cdn.worldvectorlogo.com; "
         "font-src 'self' https://fonts.gstatic.com; "
-        "connect-src 'self' https://*.cloudinary.com; "
-        "frame-ancestors 'none'; "
+        "connect-src 'self' https://*.cloudinary.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; "
+        "frame-src 'self' https://pettrust-bogota.firebaseapp.com https://accounts.google.com; " 
         "object-src 'none'; "
         "base-uri 'self';"
     )
@@ -137,7 +137,6 @@ async def add_security_and_cache_headers(request: Request, call_next):
     # Security Headers para Best Practices (Defensa en Profundidad)
     response.headers["Content-Security-Policy"] = csp
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     
@@ -1147,6 +1146,69 @@ async def logout(response: Response):
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
+
+class GoogleAuthRequest(BaseModel):
+    token: str
+
+@api_router.post("/auth/google")
+async def google_auth(request_data: GoogleAuthRequest, response: Response):
+    try:
+        # 1. Verificar token con Firebase
+        decoded_token = auth.verify_id_token(request_data.token)
+        uid = decoded_token['uid']
+        email = decoded_token['email']
+        name = decoded_token.get('name', 'Usuario Google')
+        picture = decoded_token.get('picture', '')
+        
+        # 2. Buscar usuario en DB
+        user = await db.users.find_one({"email": email})
+        
+        if not user:
+            # 3. Crear usuario si no existe (Rol por defecto: Owner)
+            new_user_id = str(uuid.uuid4())
+            user = {
+                "id": new_user_id,
+                "email": email,
+                "name": name,
+                "role": "owner", # Default role
+                "photo": picture,
+                "password": "", # No password for Google users
+                "provider": "google",
+                "firebase_uid": uid,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "is_verified": True # Google emails are verified
+            }
+            await db.users.insert_one(user)
+        else:
+            # Update info if needed
+            if user.get("provider") != "google":
+                # Link account logic or update provider? 
+                # For now, just allow login. Maybe update photo if missing.
+                if not user.get("photo"):
+                    await db.users.update_one({"email": email}, {"$set": {"photo": picture}})
+        
+        # 4. Generar JWT de PetTrust
+        token = create_access_token({"sub": user["id"], "role": user["role"]})
+        
+        # 5. Establecer Cookie de Sesión
+        response.set_cookie(
+            key="access_token",
+            value=token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=60*60*24*7 # 7 días
+        )
+        
+        # Remove sensitive data before returning
+        user_response = {k: v for k, v in user.items() if k != "password"}
+        return {"token": token, "user": user_response}
+        
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail="Token de Google inválido")
+    except Exception as e:
+        logging.error(f"Google Auth Error: {e}")
+        raise HTTPException(status_code=500, detail="Error en autenticación con Google")
 
 @api_router.post("/auth/request-password-reset")
 async def request_password_reset(request: PasswordResetRequest):

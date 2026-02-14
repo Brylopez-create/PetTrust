@@ -1,11 +1,9 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// ... config ...
 const firebaseConfig = {
     apiKey: "AIzaSyA0d0DMT2Jbbb-YzpTqKgBUXKkWO9nDXCE",
     authDomain: "pettrust-bogota.firebaseapp.com",
@@ -19,6 +17,20 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const messaging = getMessaging(app);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+
+export const loginWithGoogle = async () => {
+    try {
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+        const idToken = await user.getIdToken();
+        return { user, idToken };
+    } catch (error) {
+        console.error("Error en Google Auth", error);
+        throw error;
+    }
+};
 
 // Request permission and get token
 export const requestForToken = async () => {

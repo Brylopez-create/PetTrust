@@ -1,5 +1,11 @@
 {
   "projects": {
     "default": "studio-327226034-65d59"
-  }
+  },
+  "targets": {
+    "studio-327226034-65d59": {
+      "hosting": {}
+    }
+  },
+  "etags": {}
 }
