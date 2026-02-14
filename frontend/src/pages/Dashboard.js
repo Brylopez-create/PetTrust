@@ -11,8 +11,9 @@ import { Card, CardContent } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
-import { CalendarDays, MapPin, Clock, PlusCircle, CreditCard, Loader2, Key, Copy, Shield } from 'lucide-react';
+import { CalendarDays, MapPin, Clock, PlusCircle, CreditCard, Loader2, Key, Copy, Shield, Star, MessageSquare } from 'lucide-react';
 import ImageUpload from '../components/ImageUpload';
+import { Textarea } from '../components/ui/textarea';
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
@@ -28,6 +29,10 @@ const Dashboard = () => {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [reviewData, setReviewData] = useState({ rating: 5, comment: '' });
+  const [reviewLoading, setReviewLoading] = useState(false);
+
   const [newPet, setNewPet] = useState({
     name: '',
     breed: '',
@@ -36,6 +41,109 @@ const Dashboard = () => {
     special_needs: '',
     photo: ''
   });
+
+  // ... (useEffect and other handlers remain the same until formatPrice) ...
+
+  const handleOpenReview = (booking) => {
+    setSelectedBooking(booking);
+    setReviewData({ rating: 5, comment: '' });
+    setShowReviewDialog(true);
+  };
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!reviewData.comment.trim()) {
+      toast.error('Por favor escribe un comentario');
+      return;
+    }
+
+    setReviewLoading(true);
+    try {
+      await axios.post(`${API}/reviews`, {
+        booking_id: selectedBooking.id,
+        provider_id: selectedBooking.service_id,
+        rating: reviewData.rating,
+        comment: reviewData.comment
+      });
+      toast.success('¡Gracias por tu calificación!');
+      setShowReviewDialog(false);
+      fetchData(); // Refresh to update has_review status
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al enviar reseña');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  // ... (render logic) ...
+
+
+  {/* ... (Pets tab content) ... */ }
+
+  {/* Review Dialog */ }
+  <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+    <DialogContent className="rounded-3xl max-w-md bg-white">
+      <DialogHeader>
+        <DialogTitle className="font-heading text-xl text-center">Calificar Servicio</DialogTitle>
+      </DialogHeader>
+
+      <div className="py-4">
+        <div className="flex flex-col items-center gap-4 mb-6">
+          <div className="flex items-center gap-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => setReviewData({ ...reviewData, rating: star })}
+                className="focus:outline-none transition-transform hover:scale-110"
+              >
+                <Star
+                  className={`w-10 h-10 ${star <= reviewData.rating ? 'fill-amber-400 text-amber-400' : 'text-stone-300'}`}
+                />
+              </button>
+            ))}
+          </div>
+          <p className="text-stone-500 font-medium">
+            {reviewData.rating === 5 ? '¡Excelente!' :
+              reviewData.rating === 4 ? 'Muy bueno' :
+                reviewData.rating === 3 ? 'Bueno' :
+                  reviewData.rating === 2 ? 'Regular' : 'Malo'}
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="comment" className="text-stone-700">Comentario</Label>
+          <Textarea
+            id="comment"
+            placeholder="Cuéntanos tu experiencia..."
+            value={reviewData.comment}
+            onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })}
+            className="rounded-2xl border-stone-200 focus:border-[#28B463] min-h-[100px]"
+          />
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <Button
+          variant="outline"
+          onClick={() => setShowReviewDialog(false)}
+          className="flex-1 rounded-full border-stone-200"
+          disabled={reviewLoading}
+        >
+          Cancelar
+        </Button>
+        <Button
+          onClick={handleSubmitReview}
+          className="flex-1 bg-[#28B463] hover:bg-[#78C494] text-white rounded-full"
+          disabled={reviewLoading}
+        >
+          {reviewLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enviar Reseña'}
+        </Button>
+      </div>
+    </DialogContent>
+  </Dialog>
+
+  {/* Payment Dialog */ }
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -346,6 +454,23 @@ const Dashboard = () => {
                             Rastrear
                           </Button>
                         )}
+
+                        {booking.status === 'completed' && !booking.has_review && (
+                          <Button
+                            onClick={() => handleOpenReview(booking)}
+                            size="sm"
+                            className="flex-1 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-full border border-amber-200"
+                          >
+                            <Star className="w-4 h-4 mr-1 fill-amber-700" />
+                            Calificar
+                          </Button>
+                        )}
+
+                        {booking.status === 'completed' && booking.has_review && (
+                          <div className="flex-1 text-center py-2 text-xs font-bold text-stone-400 uppercase tracking-wider bg-stone-50 rounded-full border border-stone-100">
+                            ★ Calificado
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -581,6 +706,69 @@ const Dashboard = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Review Dialog */}
+      <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+        <DialogContent className="rounded-3xl max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-xl text-center">Calificar Servicio</DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div className="flex flex-col items-center gap-4 mb-6">
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewData({ ...reviewData, rating: star })}
+                    className="focus:outline-none transition-transform hover:scale-110"
+                  >
+                    <Star
+                      className={`w-10 h-10 ${star <= reviewData.rating ? 'fill-amber-400 text-amber-400' : 'text-stone-300'}`}
+                    />
+                  </button>
+                ))}
+              </div>
+              <p className="text-stone-500 font-medium">
+                {reviewData.rating === 5 ? '¡Excelente!' :
+                  reviewData.rating === 4 ? 'Muy bueno' :
+                    reviewData.rating === 3 ? 'Bueno' :
+                      reviewData.rating === 2 ? 'Regular' : 'Malo'}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="comment" className="text-stone-700">Comentario</Label>
+              <Textarea
+                id="comment"
+                placeholder="Cuéntanos tu experiencia..."
+                value={reviewData.comment}
+                onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })}
+                className="rounded-2xl border-stone-200 focus:border-[#28B463] min-h-[100px]"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowReviewDialog(false)}
+              className="flex-1 rounded-full border-stone-200"
+              disabled={reviewLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSubmitReview}
+              className="flex-1 bg-[#28B463] hover:bg-[#78C494] text-white rounded-full"
+              disabled={reviewLoading}
+            >
+              {reviewLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enviar Reseña'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -114,6 +114,7 @@ const ProviderDashboard = () => {
   // Edit form state
   const [editForm, setEditForm] = useState({});
   const [editAmenities, setEditAmenities] = useState([]);
+  const [editWorkingHours, setEditWorkingHours] = useState({});
   const [editSpecialties, setEditSpecialties] = useState([]);
 
   useEffect(() => {
@@ -156,6 +157,15 @@ const ProviderDashboard = () => {
         // Initialize arrays
         setEditAmenities(response.data.amenities || []);
         setEditSpecialties(response.data.specialties || []);
+        setEditWorkingHours(response.data.working_hours || {
+          monday: { start: "08:00", end: "18:00", enabled: true },
+          tuesday: { start: "08:00", end: "18:00", enabled: true },
+          wednesday: { start: "08:00", end: "18:00", enabled: true },
+          thursday: { start: "08:00", end: "18:00", enabled: true },
+          friday: { start: "08:00", end: "18:00", enabled: true },
+          saturday: { start: "09:00", end: "14:00", enabled: true },
+          sunday: { start: "08:00", end: "18:00", enabled: false },
+        });
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -230,6 +240,7 @@ const ProviderDashboard = () => {
 
       // Shared fields
       if (editForm.location_name) payload.location_name = editForm.location_name;
+      payload.working_hours = editWorkingHours;
 
       const res = await axios.patch(`${API}/providers/me/profile`, payload);
       toast.success("Perfil actualizado");
@@ -338,80 +349,80 @@ const ProviderDashboard = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="rounded-2xl border-stone-200" data-testid="capacity-card">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="rounded-2xl border-stone-200 overflow-hidden group shadow-sm hover:shadow-md transition-all">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <DollarSign className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-stone-400 uppercase tracking-tighter">Balance Disponible</p>
+                  <p className="text-2xl font-black text-slate-800">
+                    {formatPrice(schedule.total_earnings || 0)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg w-fit">
+                <CheckCircle className="w-3 h-3" /> LISTO PARA RETIRO
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-stone-200 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-sky-100 rounded-full flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-sky-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-stone-400 uppercase tracking-tighter">Próximos Cobros</p>
+                  <p className="text-2xl font-black text-slate-700">
+                    {formatPrice(schedule.pending_earnings || 0)}
+                  </p>
+                </div>
+              </div>
+              <p className="text-[10px] font-bold text-stone-400 uppercase">En servicios activos</p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-stone-200 shadow-sm" data-testid="capacity-card">
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
                   <Dog className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-stone-600">Capacidad Hoy</p>
-                  <p className="text-2xl font-bold text-stone-900">
+                  <p className="text-xs font-bold text-stone-400 uppercase tracking-tighter">Carga de Trabajo</p>
+                  <p className="text-2xl font-black text-slate-700">
                     {schedule.capacity_used} / {capacityMax}
                   </p>
                 </div>
               </div>
-              <div className="space-y-2">
-                {user?.role !== 'vet' && (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-stone-600">Máximo</span>
-                      <span className="font-medium">{capacityMax} {user?.role === 'walker' ? 'perros' : 'cupos'}</span>
-                    </div>
-                    <Slider
-                      value={[capacityMax]}
-                      onValueCommit={handleCapacityChange}
-                      max={user?.role === 'walker' ? 6 : 50}
-                      min={1}
-                      step={1}
-                      className="py-2"
-                    />
-                  </>
-                )}
-                {user?.role === 'vet' && (
-                  <div className="text-sm text-stone-500">
-                    Tu disponibilidad se gestiona por agenda.
-                  </div>
-                )}
-              </div>
+              <Slider
+                value={[capacityMax]}
+                onValueCommit={handleCapacityChange}
+                max={user?.role === 'walker' ? 6 : 50}
+                min={1}
+                step={1}
+                className="py-2"
+              />
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-stone-200">
+          <Card className="rounded-2xl border-stone-200 shadow-sm">
             <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-sky-100 rounded-full flex items-center justify-center">
-                  <Inbox className="w-5 h-5 text-sky-600" />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                  <Inbox className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-stone-600">Solicitudes Pendientes</p>
-                  <p className="text-2xl font-bold text-stone-900">{inbox.length}</p>
+                  <p className="text-xs font-bold text-stone-400 uppercase tracking-tighter">Solicitudes</p>
+                  <p className="text-2xl font-black text-slate-700">{inbox.length}</p>
                 </div>
               </div>
-              {inbox.length > 0 && (
-                <Badge className="bg-amber-100 text-amber-700 rounded-full">
-                  {inbox.length} nuevas
-                </Badge>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-stone-200">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-[#28B463]" />
-                </div>
-                <div>
-                  <p className="text-sm text-stone-600">Precio Base</p>
-                  <p className="text-2xl font-bold text-stone-900">
-                    {formatPrice(profile.price_per_walk || profile.price_per_day || (profile.rates?.consultation || 0))}
-                  </p>
-                </div>
-              </div>
-              <Badge className={`rounded-full ${profile.verified ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-600'}`}>
-                {profile.verified ? '✓ Verificado' : 'Pendiente verificación'}
+              <Badge className={`rounded-full h-5 text-[10px] font-black tracking-tighter ${inbox.length > 0 ? 'bg-red-100 text-red-600' : 'bg-stone-100 text-stone-400'}`}>
+                {inbox.length > 0 ? `${inbox.length} NUEVAS` : 'SIN PENDIENTES'}
               </Badge>
             </CardContent>
           </Card>
@@ -431,6 +442,10 @@ const ProviderDashboard = () => {
             <TabsTrigger value="schedule" className="gap-2">
               <Calendar className="w-4 h-4" />
               Agenda
+            </TabsTrigger>
+            <TabsTrigger value="finance" className="gap-2">
+              <DollarSign className="w-4 h-4" />
+              Finanzas
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
               <Settings className="w-4 h-4" />
@@ -699,6 +714,81 @@ const ProviderDashboard = () => {
             )}
           </TabsContent>
 
+          <TabsContent value="finance">
+            <Card className="rounded-3xl border-stone-200 overflow-hidden">
+              <CardHeader className="bg-stone-50/50 border-b border-stone-100">
+                <CardTitle className="font-heading flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-emerald-600" />
+                  Historial de Ganancias
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {!schedule.history || schedule.history.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <Inbox className="w-12 h-12 text-stone-300 mx-auto mb-4" />
+                    <p className="text-stone-500 font-medium">No hay servicios completados aún.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-stone-50 text-stone-500 font-bold uppercase text-[10px] tracking-widest">
+                        <tr>
+                          <th className="px-6 py-4 text-left">Servicio / Mascota</th>
+                          <th className="px-6 py-4 text-left">Fecha</th>
+                          <th className="px-6 py-4 text-right">Monto</th>
+                          <th className="px-6 py-4 text-right">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {schedule.history.map((item) => (
+                          <tr key={item.id} className="hover:bg-stone-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-xs">
+                                  {item.pet_name?.substring(0, 1)}
+                                </div>
+                                <span className="font-bold text-stone-800">{item.pet_name}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-stone-500 font-medium">
+                              {new Date(item.date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                            </td>
+                            <td className="px-6 py-4 text-right font-black text-slate-700">
+                              {formatPrice(item.price)}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 rounded-full text-[10px] font-black uppercase">
+                                Pago Recibido
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              <Card className="rounded-2xl border-stone-200 shadow-sm bg-gradient-to-br from-[#28B463]/5 to-transparent">
+                <CardContent className="p-6">
+                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2">Desempeño Mensual</p>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-3xl font-black text-slate-800">{schedule.monthly_stats?.completed_count || 0}</p>
+                      <p className="text-xs font-bold text-stone-400">Servicios Completados</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-black text-emerald-600">{formatPrice(schedule.monthly_stats?.total_value || 0)}</p>
+                      <p className="text-xs font-bold text-stone-400">Total Ganado</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           <TabsContent value="settings">
             <Card className="rounded-3xl border-stone-200">
               <CardHeader className="flex flex-row items-center justify-between">
@@ -807,6 +897,55 @@ const ProviderDashboard = () => {
                           </div>
                         </div>
                       )}
+
+                      <div className="col-span-4 border-t pt-4 mt-2">
+                        <Label className="text-sm font-bold mb-3 block text-[#28B463] uppercase tracking-tighter flex items-center gap-2">
+                          <Clock className="w-4 h-4" /> Gestión de Jornada Semanal
+                        </Label>
+                        <div className="space-y-3 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
+                          {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                            <div key={day} className="flex items-center justify-between gap-3 p-3 bg-stone-50 rounded-xl border border-stone-100">
+                              <div className="flex items-center gap-2 w-24">
+                                <Checkbox
+                                  id={`day-${day}`}
+                                  checked={editWorkingHours[day]?.enabled}
+                                  onCheckedChange={(checked) => setEditWorkingHours({
+                                    ...editWorkingHours,
+                                    [day]: { ...editWorkingHours[day], enabled: checked }
+                                  })}
+                                />
+                                <Label htmlFor={`day-${day}`} className="text-[10px] font-black uppercase text-stone-600 cursor-pointer">
+                                  {day.substring(0, 3)}
+                                </Label>
+                              </div>
+
+                              <div className="flex items-center gap-2 flex-1">
+                                <Input
+                                  type="time"
+                                  className="h-8 text-[11px] font-bold px-2 rounded-lg"
+                                  value={editWorkingHours[day]?.start}
+                                  disabled={!editWorkingHours[day]?.enabled}
+                                  onChange={(e) => setEditWorkingHours({
+                                    ...editWorkingHours,
+                                    [day]: { ...editWorkingHours[day], start: e.target.value }
+                                  })}
+                                />
+                                <span className="text-[10px] font-bold text-stone-400">A</span>
+                                <Input
+                                  type="time"
+                                  className="h-8 text-[11px] font-bold px-2 rounded-lg"
+                                  value={editWorkingHours[day]?.end}
+                                  disabled={!editWorkingHours[day]?.enabled}
+                                  onChange={(e) => setEditWorkingHours({
+                                    ...editWorkingHours,
+                                    [day]: { ...editWorkingHours[day], end: e.target.value }
+                                  })}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
 
                     </div>
                     <DialogFooter>

@@ -31,6 +31,43 @@ import cloudinary.uploader
 import cloudinary.api
 import resend
 import asyncio
+import firebase_admin
+from firebase_admin import credentials, messaging
+
+# Initialize Firebase Admin SDK
+# Note: Ensure GOOGLE_APPLICATION_CREDENTIALS env var is set or use a service account json file
+try:
+    if not firebase_admin._apps:
+        # Example using a service account file if available, or default credentials
+        # cred = credentials.Certificate("path/to/serviceAccountKey.json")
+        # firebase_admin.initialize_app(cred)
+        firebase_admin.initialize_app() # Uses default credentials logic
+except Exception as e:
+    logging.warning(f"Firebase Admin initialization failed: {e}")
+
+async def send_fcm_notification(token: str, title: str, body: str, data: Optional[Dict[str, str]] = None):
+    """Sends a push notification via Firebase Cloud Messaging."""
+    if not token:
+        return
+        
+    try:
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title=title,
+                body=body,
+            ),
+            data=data or {},
+            token=token,
+        )
+        # Verify if running in async context properly, but admin SDK is sync. 
+        # Making it async non-blocking by running in executor if needed, but for low volume sync is usually fine or wrapping.
+        # However, for high scale, offloading to background task is better.
+        # For this implementation, we'll run it directly as the method is fast enough for MVP.
+        response = messaging.send(message)
+        logging.info(f"Successfully sent message: {response}")
+    except Exception as e:
+        logging.error(f"Error sending message: {e}")
+
 
 def haversine(lat1, lon1, lat2, lon2):
     """Calcula la distancia en km entre dos puntos geográficos."""
@@ -38,8 +75,10 @@ def haversine(lat1, lon1, lat2, lon2):
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - math.edge(a))) if hasattr(math, 'edge') else 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
+
+
 
 class PetMatchRequest(BaseModel):
     pet_id: str
@@ -87,7 +126,7 @@ async def add_security_and_cache_headers(request: Request, call_next):
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " # Permitir Leaflet y scripts internos
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-        "img-src 'self' data: https://images.unsplash.com https://*.tile.openstreetmap.org https://res.cloudinary.com; "
+        "img-src 'self' data: https://images.unsplash.com https://*.tile.openstreetmap.org https://res.cloudinary.com https://cdn.worldvectorlogo.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "connect-src 'self' https://*.cloudinary.com; "
         "frame-ancestors 'none'; "
@@ -595,6 +634,10 @@ class Prospect(BaseModel):
     status: str = "pending" # pending, in_review, approved, rejected
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     verification_token: Optional[str] = None
+
+class FCMTokenUpdate(BaseModel):
+    token: str
+
 
 class ProspectCreate(BaseModel):
     name: str
@@ -1439,6 +1482,17 @@ async def get_my_pets(current_user: dict = Depends(get_current_user)):
     pets = await db.pets.find({"owner_id": current_user["id"]}, {"_id": 0}).to_list(100)
     return pets
 
+@api_router.put("/users/me/fcm-token")
+async def update_fcm_token(token_data: FCMTokenUpdate, current_user: dict = Depends(get_current_user)):
+    """Updates the FCM registration token for the current user."""
+    result = await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": {"fcm_token": token_data.token}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return {"message": "Token FCM actualizado"}
+
 @api_router.post("/bookings", response_model=Booking)
 async def create_booking(booking_data: BookingCreate, current_user: dict = Depends(get_current_user)):
     pet = await db.pets.find_one({"id": booking_data.pet_id, "owner_id": current_user["id"]}, {"_id": 0})
@@ -1502,15 +1556,26 @@ async def create_booking(booking_data: BookingCreate, current_user: dict = Depen
 @api_router.get("/bookings", response_model=List[Booking])
 async def get_my_bookings(current_user: dict = Depends(get_current_user)):
     if current_user["role"] == "owner":
-        bookings = await db.bookings.find({"owner_id": current_user["id"]}, {"_id": 0}).to_list(100)
+        bookings = await db.bookings.find({"owner_id": current_user["id"]}, {"_id": 0}).sort("date", -1).to_list(100)
+        
+        # Check for reviewed bookings efficiently
+        completed_ids = [b["id"] for b in bookings if b.get("status") == "completed"]
+        reviewed_ids = set()
+        if completed_ids:
+            reviews = await db.reviews.find({"booking_id": {"$in": completed_ids}}, {"booking_id": 1}).to_list(len(completed_ids))
+            reviewed_ids = {r["booking_id"] for r in reviews}
+            
+        for b in bookings:
+            b["has_review"] = b["id"] in reviewed_ids
+            
     elif current_user["role"] == "admin":
-        bookings = await db.bookings.find({}, {"_id": 0}).to_list(100)
+        bookings = await db.bookings.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
     else:
         profile_collection = "walkers" if current_user["role"] == "walker" else "daycares"
         profile = await db[profile_collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
         if not profile:
             return []
-        bookings = await db.bookings.find({"service_id": profile["id"]}, {"_id": 0}).to_list(100)
+        bookings = await db.bookings.find({"service_id": profile["id"]}, {"_id": 0}).sort("date", -1).to_list(100)
     return bookings
 
 @api_router.get("/bookings/{booking_id}", response_model=Booking)
@@ -1569,6 +1634,20 @@ async def complete_walk(booking_id: str, current_user: dict = Depends(get_curren
             "completed_at": datetime.now(timezone.utc).isoformat()
         }}
     )
+
+    # 4. Enviar notificación al dueño (Firebase FCM)
+    try:
+        owner = await db.users.find_one({"id": booking.get("owner_id")})
+        if owner and owner.get("fcm_token"):
+            asyncio.create_task(send_fcm_notification(
+                token=owner["fcm_token"],
+                title="🐕 ¡Paseo Terminado!",
+                body=f"El paseo de {booking.get('pet_name', 'tu mascota')} ha finalizado. ¡No olvides calificar!",
+                data={"booking_id": booking["id"], "type": "walk_completed"}
+            ))
+    except Exception as e:
+        logging.error(f"Error sending completion push notification: {e}")
+
     return {"message": "Paseo completado", "completed_at": datetime.now(timezone.utc).isoformat()}
 
 @api_router.post("/bookings/{booking_id}/payment")
@@ -2009,6 +2088,34 @@ async def search_providers(
     
     return results
 
+async def check_walker_schedule_conflict(walker_id: str, date: str, time: str):
+    """Internal helper to verify if a walker has capacity for a specific slot"""
+    provider = await db.walkers.find_one({"id": walker_id})
+    if not provider: return True
+    
+    # 1. Check working hours
+    day_name = datetime.strptime(date, "%Y-%m-%d").strftime("%A").lower()
+    work_hours = provider.get("working_hours", {}).get(day_name)
+    
+    if work_hours:
+        if not work_hours.get("enabled"): return True
+        try:
+            start_h = int(work_hours["start"].split(":")[0])
+            end_h = int(work_hours["end"].split(":")[0])
+            req_h = int(time.split(":")[0])
+            if req_h < start_h or req_h >= end_h: return True
+        except: pass
+            
+    # 2. Check capacity
+    bookings_count = await db.bookings.count_documents({
+        "service_id": walker_id,
+        "date": date,
+        "time": time,
+        "status": {"$in": ["pending", "confirmed", "in_progress"]}
+    })
+    
+    return bookings_count >= provider.get("capacity_max", 4)
+
 @api_router.get("/availability/check")
 async def check_availability(
     service_id: str,
@@ -2016,117 +2123,67 @@ async def check_availability(
     date: str,
     time: Optional[str] = None
 ):
-    """Check if a provider has availability for a specific date/time"""
-    if service_type == "walker":
-        collection = "walkers"
-    elif service_type == "daycare" or service_type == "guarderia":
-        collection = "daycares"
-    else:
-        collection = "vets"
-    provider = await db[collection].find_one({"id": service_id}, {"_id": 0})
+    """Check if a provider has availability for a specific date/time with dynamic rules"""
+    collection = "walkers"
+    if service_type in ["daycare", "guarderia"]: collection = "daycares"
+    elif service_type in ["vet", "veterinario"]: collection = "vets"
     
+    provider = await db[collection].find_one({"id": service_id}, {"_id": 0})
     if not provider:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
     
     if not provider.get("is_active", False):
-        return {
-            "available": False,
-            "reason": "Este proveedor no está recibiendo solicitudes actualmente",
-            "capacity_remaining": 0
-        }
+        return {"available": False, "reason": "Proveedor inactivo", "capacity_remaining": 0}
     
-    # For walkers, check time slots
-    if service_type == "walker":
-        available_slots = provider.get("available_slots", ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"])
+    # Logic for Walkers and Vets (Slot Based)
+    if service_type in ["walker", "vet", "veterinario"]:
+        # 1. Generate dynamic slots for the day
+        day_name = datetime.strptime(date, "%Y-%m-%d").strftime("%A").lower()
+        work_hours = provider.get("working_hours", {}).get(day_name)
         
-        # Normalize requested time to 24h format (HH:MM)
-        normalized_time = time
-        if time:
-            # Handle various formats: "6:00 PM", "18:00", "6:00", etc.
-            time_clean = time.strip().upper()
-            if "PM" in time_clean or "AM" in time_clean:
-                parts = time_clean.replace("PM", "").replace("AM", "").strip().split(":")
-                hour = int(parts[0])
-                minute = parts[1] if len(parts) > 1 else "00"
-                if "PM" in time_clean and hour < 12:
-                    hour += 12
-                elif "AM" in time_clean and hour == 12:
-                    hour = 0
-                normalized_time = f"{hour:02d}:{minute}"
-            else:
-                # Already in 24h format, just normalize
-                parts = time.split(":")
-                hour = int(parts[0])
-                minute = parts[1] if len(parts) > 1 else "00"
-                normalized_time = f"{hour:02d}:{minute}"
-        
-        # If no time specified or slots empty, check general capacity
-        if not normalized_time or len(available_slots) == 0:
-            bookings_count = await db.bookings.count_documents({
-                "service_id": service_id,
-                "date": date,
-                "status": {"$in": ["pending", "confirmed", "in_progress"]}
-            })
-            capacity_max = provider.get("capacity_max", 4) * len(available_slots if available_slots else [1])
-            capacity_remaining = max(0, capacity_max - bookings_count)
+        if work_hours and work_hours.get("enabled"):
+            start_h = int(work_hours["start"].split(":")[0])
+            end_h = int(work_hours["end"].split(":")[0])
+            available_slots = [f"{h:02d}:00" for h in range(start_h, end_h)]
+        else:
+            available_slots = provider.get("available_slots") or ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
             
-            return {
-                "available": capacity_remaining > 0,
-                "capacity_remaining": capacity_remaining,
-                "available_slots": available_slots,
-                "provider_name": provider.get("name", "")
-            }
-        
-        # Check if time is in available slots
-        if normalized_time not in available_slots:
-            return {
-                "available": False,
-                "reason": f"El horario {time} no está en los horarios del paseador. Disponible: {', '.join(available_slots)}",
-                "capacity_remaining": 0,
-                "next_available_slot": available_slots[0] if available_slots else None,
-                "available_slots": available_slots
-            }
-        
-        # Count bookings for this specific slot
+        if not time:
+            return {"available": True, "available_slots": available_slots}
+            
+        # 2. Check specific slot
+        if time not in available_slots:
+            return {"available": False, "reason": "Horario fuera de jornada", "available_slots": available_slots}
+            
         bookings_count = await db.bookings.count_documents({
             "service_id": service_id,
             "date": date,
-            "time": normalized_time,
+            "time": time,
             "status": {"$in": ["pending", "confirmed", "in_progress"]}
         })
-        capacity_max = provider.get("capacity_max", 4)
-        capacity_remaining = capacity_max - bookings_count
-        
-        next_available = None
-        try:
-            idx = available_slots.index(normalized_time)
-            if idx + 1 < len(available_slots):
-                next_available = available_slots[idx + 1]
-        except ValueError:
-            pass
+        capacity_max = provider.get("capacity_max", 4) if service_type == "walker" else 2 # Default for Vet
+        remaining = max(0, capacity_max - bookings_count)
         
         return {
-            "available": capacity_remaining > 0,
-            "capacity_remaining": capacity_remaining,
-            "next_available_slot": next_available,
+            "available": remaining > 0,
+            "capacity_remaining": remaining,
             "available_slots": available_slots,
             "provider_name": provider.get("name", "")
         }
     
     else:
-        # Daycare or Vet - check daily capacity
-        bookings_count = await db.bookings.count_documents({
+        # Daycare (Daily Based)
+        daily_bookings = await db.bookings.count_documents({
             "service_id": service_id,
             "date": date,
             "status": {"$in": ["pending", "confirmed", "in_progress"]}
         })
         capacity_max = provider.get("capacity_total", 20)
-        capacity_remaining = capacity_max - bookings_count
+        remaining = max(0, capacity_max - daily_bookings)
         
         return {
-            "available": capacity_remaining > 0,
-            "capacity_remaining": capacity_remaining,
-            "next_available_slot": None,
+            "available": remaining > 0,
+            "capacity_remaining": remaining,
             "provider_name": provider.get("name", "")
         }
 
@@ -2136,23 +2193,37 @@ async def get_provider_slots(
     provider_id: str,
     date: Optional[str] = None
 ):
-    """Get available slots for a provider on a specific date with capacity info"""
-    if provider_type == "walker":
-        collection = "walkers"
-    elif provider_type == "daycare" or provider_type == "guarderia":
-        collection = "daycares"
-    else:
-        collection = "vets"
+    """Get dynamic slots based on provider's working hours and availability"""
+    collection = "walkers"
+    if provider_type == "daycare" or provider_type == "guarderia": collection = "daycares"
+    elif provider_type == "vet" or provider_type == "veterinario": collection = "vets"
     
     provider = await db[collection].find_one({"id": provider_id}, {"_id": 0})
     if not provider:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
     
-    available_slots = provider.get("available_slots", ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"])
-    capacity_max = provider.get("capacity_max", 4)
+    # 1. Determinar el horario del día solicitado
+    work_hours = None
+    if date and provider.get("working_hours"):
+        try:
+            day_name = datetime.strptime(date, "%Y-%m-%d").strftime("%A").lower()
+            work_hours = provider["working_hours"].get(day_name)
+        except Exception:
+            pass
+            
+    # 2. Generar slots (Dinámicos vs Estáticos)
+    if work_hours and work_hours.get("enabled"):
+        start_h = int(work_hours["start"].split(":")[0])
+        end_h = int(work_hours["end"].split(":")[0])
+        available_slots = [f"{h:02d}:00" for h in range(start_h, end_h)]
+    else:
+        # Fallback a slots predefinidos o default
+        available_slots = provider.get("available_slots") or ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
     
+    capacity_max = provider.get("capacity_max", 4)
     slots_with_capacity = []
     
+    # 3. Cruzar con reservas existentes
     if date:
         for slot in available_slots:
             bookings_count = await db.bookings.count_documents({
@@ -2161,7 +2232,7 @@ async def get_provider_slots(
                 "time": slot,
                 "status": {"$in": ["pending", "confirmed", "in_progress"]}
             })
-            remaining = capacity_max - bookings_count
+            remaining = max(0, capacity_max - bookings_count)
             slots_with_capacity.append({
                 "time": slot,
                 "capacity_remaining": remaining,
@@ -2178,10 +2249,10 @@ async def get_provider_slots(
     return {
         "provider_id": provider_id,
         "provider_name": provider.get("name", ""),
-        "is_active": provider.get("is_active", False),
         "date": date,
         "slots": slots_with_capacity,
-        "capacity_max_per_slot": capacity_max
+        "capacity_max_per_slot": capacity_max,
+        "working_hours_info": work_hours
     }
 
 
@@ -2559,6 +2630,17 @@ async def get_provider_schedule(
     if not profile:
         return {"bookings": [], "capacity_used": 0}
     
+    # Búsqueda ampliada para estadísticas de ganancias
+    stats_query = {
+        "service_id": profile["id"],
+        "status": {"$in": ["confirmed", "in_progress", "completed", "pending"]}
+    }
+    all_related_bookings = await db.bookings.find(stats_query, {"_id": 0}).to_list(200)
+
+    total_earnings = sum(b.get("price", 0) for b in all_related_bookings if b.get("status") == "completed")
+    pending_earnings = sum(b.get("price", 0) for b in all_related_bookings if b.get("status") in ["confirmed", "in_progress", "pending"] and b.get("payment_status") == "paid")
+    
+    # Query original para la agenda (próximos servicios)
     query = {
         "service_id": profile["id"],
         "$or": [
@@ -2569,17 +2651,29 @@ async def get_provider_schedule(
     
     if date:
         query["date"] = date
-    
-    bookings = await db.bookings.find(query, {"_id": 0}).sort("date", 1).to_list(100)
+        bookings = await db.bookings.find(query, {"_id": 0}).sort("time", 1).to_list(100)
+    else:
+        bookings = await db.bookings.find(query, {"_id": 0}).sort("date", 1).sort("time", 1).to_list(100)
     
     capacity_max = profile.get("capacity_max", 4) if current_user["role"] == "walker" else profile.get("capacity_total", 20)
-    capacity_used = len([b for b in bookings if b.get("date") == date]) if date else len(bookings)
+    capacity_used = len([b for b in bookings if b.get("date") == date]) if date else len([b for b in bookings if b.get("status") != "completed"])
     
+    # Lista de servicios completados para historial (Ultimos 50)
+    history = [b for b in all_related_bookings if b.get("status") == "completed"]
+    history.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+
     return {
         "bookings": bookings,
+        "history": history[:50],
         "capacity_max": capacity_max,
         "capacity_used": capacity_used,
-        "is_active": profile.get("is_active", False)
+        "is_active": profile.get("is_active", False),
+        "total_earnings": total_earnings,
+        "pending_earnings": pending_earnings,
+        "monthly_stats": {
+            "completed_count": len([b for b in all_related_bookings if b.get("status") == "completed"]),
+            "total_value": total_earnings
+        }
     }
 
 # ============= MANUAL PAYMENTS ENDPOINTS =============
@@ -3720,6 +3814,19 @@ async def verify_pin_and_start(
         }}
     )
     
+    # Notify owner walk started
+    try:
+        owner = await db.users.find_one({"id": booking.get("owner_id")})
+        if owner and owner.get("fcm_token"):
+            asyncio.create_task(send_fcm_notification(
+                token=owner["fcm_token"],
+                title="🐕 ¡Paseo Iniciado!",
+                body=f"El paseo de {booking.get('pet_name', 'tu mascota')} ha comenzado.",
+                data={"booking_id": booking["id"], "type": "walk_started"}
+            ))
+    except Exception as e:
+        logging.error(f"Error sending start push notification: {e}")
+    
     # Notify owner that walk has started
     notification = Notification(
         user_id=booking["owner_id"],
@@ -4090,6 +4197,20 @@ async def create_review(review_data: ReviewCreate, current_user: dict = Depends(
 
     if booking["status"] != "completed":
         raise HTTPException(status_code=400, detail="Solo puedes reseñar servicios completados")
+        
+    # Check if booking is too old (e.g., > 30 days)
+    completed_at_str = booking.get("completed_at") or booking.get("date") # Fallback to date if completed_at missing
+    try:
+        if completed_at_str:
+            completed_date = datetime.fromisoformat(completed_at_str.replace("Z", "+00:00"))
+            if completed_date.tzinfo is None:
+                completed_date = completed_date.replace(tzinfo=timezone.utc)
+                
+            delta = datetime.now(timezone.utc) - completed_date
+            if delta.days > 30:
+                raise HTTPException(status_code=400, detail="No puedes calificar servicios de hace más de 30 días")
+    except ValueError:
+        pass # If date parsing fails, we skip this check to avoid blocking valid reviews due to data issues
 
     # 2. Check if already reviewed
     existing_review = await db.reviews.find_one({"booking_id": review_data.booking_id})

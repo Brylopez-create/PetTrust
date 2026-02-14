@@ -20,10 +20,12 @@ import WalkersLanding from './pages/WalkersLanding';
 import Benefits from './pages/Benefits';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import IOSInstallBanner from './components/IOSInstallBanner';
 
 import { Capacitor } from '@capacitor/core';
 import Onboarding from './pages/Onboarding';
 import { startPerformanceMonitoring } from './utils/performanceMonitor';
+import { requestForToken, onMessageListener } from './firebase';
 
 // Iniciar monitoreo de métricas de rendimiento (Core Web Vitals)
 startPerformanceMonitoring();
@@ -58,9 +60,33 @@ function App() {
     try {
       const response = await axios.get(`${API}/auth/me`);
       setUser(response.data);
+
+      // Request Notification Permission & Token (Firebase)
+      try {
+        const fcmToken = await requestForToken();
+        if (fcmToken) {
+          // Send token to backend to update user profile
+          // We use a try-catch here to not block the app if token fails
+          await axios.put(`${API}/users/me/fcm-token`, { token: fcmToken });
+        }
+      } catch (err) {
+        console.log('Push notification setup failed', err);
+      }
+
+      onMessageListener().then(payload => {
+        // Show toast for foreground notification
+        toast(payload.notification.title, {
+          description: payload.notification.body,
+        });
+      }).catch(err => console.log('failed: ', err));
+
     } catch (error) {
       console.error('Error fetching user:', error);
-      logout();
+      // Don't logout immediately on error, allow retry or stay in loading state to prevent flash
+      // Only logout if 401
+      if (error.response && error.response.status === 401) {
+        logout();
+      }
     } finally {
       setLoading(false);
     }
@@ -98,6 +124,7 @@ function App() {
   return (
     <AuthContext.Provider value={{ user, token, login, logout }}>
       <BrowserRouter>
+        <IOSInstallBanner />
         <Routes>
           {/* Conditional Entry Point: If Mobile/PWA -> Onboarding, else -> Home */}
           <Route path="/" element={

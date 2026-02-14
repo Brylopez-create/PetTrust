@@ -182,6 +182,7 @@ class ProviderProfileUpdate(BaseModel):
     pickup_service: Optional[bool] = None
     pickup_price: Optional[float] = None
     professional_license: Optional[str] = None
+    working_hours: Optional[Dict[str, Any]] = None
 
 # ============= PET MODELS =============
 class Pet(BaseModel):
@@ -236,6 +237,7 @@ class Booking(BaseModel):
     checkin_at: Optional[str] = None
     checkin_location: Optional[Dict[str, float]] = None
     wompi_transaction_id: Optional[str] = None
+    has_review: bool = False
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class BookingCreate(BaseModel):

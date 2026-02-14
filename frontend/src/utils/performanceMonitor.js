@@ -1,5 +1,5 @@
 // frontend/src/utils/performanceMonitor.js
-import { onCLS, onFID, onLCP } from 'web-vitals';
+import { onCLS, onINP, onLCP, onFCP, onTTFB } from 'web-vitals';
 
 const reportToBackend = (metric) => {
     const body = JSON.stringify({
@@ -12,6 +12,11 @@ const reportToBackend = (metric) => {
 
     // Usamos sendBeacon: se envía incluso si el usuario cierra la pestaña
     if (navigator.sendBeacon) {
+        // Use full URL or ensure base is correct, but relative path is fine if hosted on same origin
+        // However, API variable in App.js uses process.env.REACT_APP_BACKEND_URL
+        // Here we use relative path assuming proxy or same origin. 
+        // Better to use API url if possible, but keep simple for now as per existing code.
+        // Existing code uses '/api/v1/performance-logs'.
         navigator.sendBeacon('/api/v1/performance-logs', body);
     } else {
         fetch('/api/v1/performance-logs', {
@@ -25,6 +30,8 @@ const reportToBackend = (metric) => {
 
 export const startPerformanceMonitoring = () => {
     onCLS(reportToBackend);
-    onFID(reportToBackend);
+    onINP(reportToBackend);
     onLCP(reportToBackend);
+    onFCP(reportToBackend);
+    onTTFB(reportToBackend);
 };
