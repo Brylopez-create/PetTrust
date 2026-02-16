@@ -106,8 +106,10 @@ app.add_middleware(
         "http://localhost:3000",
         "https://pettrust.vercel.app",
         "https://pet-trust-7-git-main-brayans-projects-0076d97c.vercel.app",
-        "https://*.vercel.app"  # Allow all Vercel preview deployments
+        "https://pettrust-bogota.web.app",
+        "https://pettrust-bogota.firebaseapp.com",
     ],
+    allow_origin_regex=r"https://.*\.vercel\.app",  # All Vercel preview deployments
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

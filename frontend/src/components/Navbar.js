@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext, API } from '../App';
 import { Button } from './ui/button';
-import { Dialog, DialogContent } from './ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from './ui/sheet';
 import { Badge } from './ui/badge';
 import { User, LogOut, LayoutDashboard, Shield, Menu, X, Search, Home, MessageCircle, Dog } from 'lucide-react';
@@ -295,7 +295,8 @@ const Navbar = () => {
 
       {/* Safety Center Dialog */}
       <Dialog open={showSafety} onOpenChange={setShowSafety}>
-        <DialogContent className="rounded-3xl max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="rounded-3xl max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
+          <DialogTitle className="sr-only">Centro de Seguridad</DialogTitle>
           <SafetyCenter onClose={() => setShowSafety(false)} />
         </DialogContent>
       </Dialog>

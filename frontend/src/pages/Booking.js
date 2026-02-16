@@ -421,7 +421,8 @@ const Booking = () => {
 
       {/* Payment Dialog */}
       <Dialog open={showPayment} onOpenChange={setShowPayment}>
-        <DialogContent className="sm:max-w-md p-0 bg-transparent border-0 shadow-none">
+        <DialogContent className="sm:max-w-md p-0 bg-transparent border-0 shadow-none" aria-describedby={undefined}>
+          <DialogTitle className="sr-only">Pago de Reserva</DialogTitle>
           {createdBooking && (
             <PaymentSelector
               bookingId={createdBooking.id}
