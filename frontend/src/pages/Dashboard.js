@@ -82,7 +82,7 @@ const Dashboard = () => {
 
   {/* Review Dialog */ }
   <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
-    <DialogContent className="rounded-3xl max-w-md bg-white">
+    <DialogContent className="rounded-3xl max-w-md bg-white" aria-describedby={undefined}>
       <DialogHeader>
         <DialogTitle className="font-heading text-xl text-center">Calificar Servicio</DialogTitle>
       </DialogHeader>
@@ -301,7 +301,7 @@ const Dashboard = () => {
 
         {/* Edit Profile Dialog */}
         <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
-          <DialogContent className="rounded-3xl sm:max-w-md">
+          <DialogContent className="rounded-3xl sm:max-w-md" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>Editar Perfil</DialogTitle>
             </DialogHeader>
@@ -488,7 +488,7 @@ const Dashboard = () => {
                     Agregar Mascota
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="rounded-3xl max-h-[85vh] overflow-y-auto sm:max-w-md bg-white p-4 sm:p-6">
+                <DialogContent className="rounded-3xl max-h-[85vh] overflow-y-auto sm:max-w-md bg-white p-4 sm:p-6" aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle className="font-heading text-xl text-center">Nueva Mascota</DialogTitle>
                   </DialogHeader>
@@ -631,7 +631,7 @@ const Dashboard = () => {
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="rounded-3xl max-w-md">
+        <DialogContent className="rounded-3xl max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="font-heading text-xl">Pagar Reserva</DialogTitle>
           </DialogHeader>
@@ -711,7 +711,7 @@ const Dashboard = () => {
 
       {/* Review Dialog */}
       <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
-        <DialogContent className="rounded-3xl max-w-md bg-white">
+        <DialogContent className="rounded-3xl max-w-md bg-white" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="font-heading text-xl text-center">Calificar Servicio</DialogTitle>
           </DialogHeader>

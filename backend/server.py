@@ -541,15 +541,20 @@ class ManualPayment(BaseModel):
     booking_id: str
     user_id: str
     amount: float
-    payment_method: str  # nequi, daviplata
+    payment_method: str
     proof_url: str
     status: str = "pending"  # pending, approved, rejected
+    image_hash: Optional[str] = None
+    ai_score: Optional[float] = None
+    admin_notes: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[str] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class ManualPaymentCreate(BaseModel):
     booking_id: str
     amount: float
-    payment_method: str
+    payment_method: str = "nequi"
     proof_url: str
 
 class PasswordResetRequest(BaseModel):
@@ -2740,37 +2745,7 @@ async def get_provider_schedule(
         }
     }
 
-# ============= MANUAL PAYMENTS ENDPOINTS =============
 
-@api_router.post("/payments/register_manual")
-async def register_manual_payment(
-    payment_data: ManualPaymentCreate,
-    current_user: dict = Depends(get_current_user)
-):
-    booking = await db.bookings.find_one({
-        "id": payment_data.booking_id,
-        "owner_id": current_user["id"]
-    }, {"_id": 0})
-    if not booking:
-        raise HTTPException(status_code=404, detail="Reserva no encontrada")
-        
-    payment = ManualPayment(
-        booking_id=payment_data.booking_id,
-        user_id=current_user["id"],
-        amount=payment_data.amount,
-        payment_method=payment_data.payment_method,
-        proof_url=payment_data.proof_url
-    )
-    
-    await db.manual_payments.insert_one(payment.model_dump())
-    
-    # Update booking status
-    await db.bookings.update_one(
-        {"id": payment_data.booking_id},
-        {"$set": {"status": "awaiting_approval", "payment_status": "pending_approval"}}
-    )
-    
-    return payment
 
 @api_router.post("/payments/submit")
 async def submit_manual_payment(
@@ -4018,61 +3993,9 @@ async def complete_walk(
         "completed_at": datetime.now(timezone.utc).isoformat()
     }
 
-# ============= MANUAL PAYMENT FLOW =============
-
-class ManualPaymentCreate(BaseModel):
-    booking_id: str
-    amount: float
-    payment_method: str = "nequi"  # nequi, daviplata, bancolombia
-    proof_image_url: str
-
-class ManualPayment(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    booking_id: str
-    user_id: str
-    amount: float
-    payment_method: str
-    proof_image_url: str
-    proof_image_url: str
-    status: str = "pending"  # pending, approved, rejected
-    image_hash: Optional[str] = None
-    ai_score: Optional[float] = None
-    admin_notes: Optional[str] = None
-    reviewed_by: Optional[str] = None
-    reviewed_at: Optional[str] = None
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-@api_router.post("/payments/manual")
-async def create_manual_payment(
-    payment: ManualPaymentCreate,
-    current_user: dict = Depends(get_current_user)
-):
-    """Submit manual payment proof for admin approval (Legacy support)"""
-    return await register_manual_payment(
-        RegisterManualPayment(
-            booking_id=payment.booking_id,
-            amount=payment.amount,
-            payment_method=payment.payment_method,
-            proof_url=payment.proof_image_url
-        ),
-        current_user
-    )
-
-
-
-
-
-# Alternative endpoint for frontend compatibility
-class RegisterManualPayment(BaseModel):
-    booking_id: str
-    amount: float
-    payment_method: str = "nequi"
-    proof_url: str
-
 @api_router.post("/payments/register_manual")
 async def register_manual_payment(
-    payment: RegisterManualPayment,
+    payment: ManualPaymentCreate,
     current_user: dict = Depends(get_current_user)
 ):
     """Register manual payment (with Anti-Fraud Hashing)"""
@@ -4090,14 +4013,15 @@ async def register_manual_payment(
             if img_res.status_code == 200:
                 image_hash = hashlib.sha256(img_res.content).hexdigest()
                 
-                # Buscar duplicados (Mismo pantallazo usado antes)
-                duplicate = await db.manual_payments.find_one({"image_hash": image_hash})
-                if duplicate:
-                    logging.warning(f"Intento de fraude: Imagen duplicada detectada de {current_user['email']}")
-                    raise HTTPException(
-                        status_code=400, 
-                        detail="Este comprobante ya ha sido utilizado para otro pago. Por favor sube uno nuevo."
-                    )
+                # Buscar duplicados (Mismo pantallazo usado antes) - Solo si generamos un hash válido
+                if image_hash:
+                    duplicate = await db.manual_payments.find_one({"image_hash": image_hash})
+                    if duplicate:
+                        logging.warning(f"Intento de fraude: Imagen duplicada detectada de {current_user['email']}")
+                        raise HTTPException(
+                            status_code=400, 
+                            detail="Este comprobante ya ha sido utilizado para otro pago. Por favor sube uno nuevo o contáctanos."
+                        )
     except HTTPException:
         raise
     except Exception as e:
@@ -4111,7 +4035,7 @@ async def register_manual_payment(
         user_id=current_user["id"],
         amount=payment.amount,
         payment_method=payment.payment_method,
-        proof_image_url=payment.proof_url,
+        proof_url=payment.proof_url,
         image_hash=image_hash,
         ai_score=1.0 # Placeholder: Aquí iría el resultado del OCR
     )
