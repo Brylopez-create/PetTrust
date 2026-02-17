@@ -1,7 +1,7 @@
 {
     "short_name": "PetTrust",
-    "name": "PetTrust Bogotá - Cuidado de Mascotas",
-    "description": "Encontrá paseadores, veterinarios y guarderías certificados para tu mascota en Bogotá",
+    "name": "PetTrust Bogotá - Marketplace de Cuidadores Premium",
+    "description": "Conecta con paseadores, veterinarios y guarderías certificados en Bogotá. Seguimiento GPS en tiempo real y seguro incluido.",
     "icons": [
         {
             "src": "logo-pettrust.png",
@@ -16,15 +16,38 @@
             "purpose": "any maskable"
         }
     ],
-    "start_url": "/",
+    "start_url": "/landing-optimizada",
     "scope": "/",
     "display": "standalone",
-    "theme_color": "#0F4C75",
-    "background_color": "#ffffff",
+    "theme_color": "#006D77",
+    "background_color": "#EDF6F9",
     "orientation": "portrait-primary",
     "categories": [
         "lifestyle",
-        "utilities"
+        "utilities",
+        "pets"
     ],
-    "lang": "es-CO"
+    "lang": "es-CO",
+    "shortcuts": [
+        {
+            "name": "Explorar Paseadores",
+            "url": "/explorar",
+            "icons": [
+                {
+                    "src": "logo-pettrust.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Beneficios",
+            "url": "/beneficios",
+            "icons": [
+                {
+                    "src": "logo-pettrust.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ]
 }

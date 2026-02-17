@@ -9,7 +9,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Calendar, CreditCard, Clock, Users, QrCode, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Calendar, CreditCard, Clock, Users, QrCode, CheckCircle2, AlertCircle, Loader2, DollarSign } from 'lucide-react';
 import PaymentSelector from '../components/PaymentSelector';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 
@@ -251,26 +251,34 @@ const Booking = () => {
 
                   {/* Time Selection with Capacity - for Walker/Vet */}
                   {(type === 'walker' || type === 'veterinario' || type === 'vet') && formData.date && (
-                    <div>
-                      <Label className="flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        Horario Disponible
-                      </Label>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="flex items-center gap-2 text-stone-700 font-bold">
+                          <Clock className="w-4 h-4 text-[#28B463]" />
+                          Horarios Disponibles
+                        </Label>
+                        {service?.working_hours && (
+                          <div className="text-[10px] font-black bg-stone-100 text-stone-500 px-2 py-1 rounded-lg uppercase tracking-widest">
+                            Rango: {service.working_hours[new Date(formData.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()]?.start} - {service.working_hours[new Date(formData.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()]?.end}
+                          </div>
+                        )}
+                      </div>
 
                       {slotsLoading ? (
-                        <div className="mt-3 flex items-center justify-center py-8">
-                          <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#28B463] border-t-transparent"></div>
+                        <div className="mt-3 flex flex-col items-center justify-center py-12 bg-stone-50 rounded-2xl border-2 border-dashed border-stone-200">
+                          <Loader2 className="w-8 h-8 animate-spin text-[#28B463] mb-2" />
+                          <p className="text-xs font-bold text-stone-400 uppercase tracking-widest">Calculando Disponibilidad...</p>
                         </div>
-                      ) : !hasAvailableSlots ? (
-                        <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
-                          <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5" />
+                      ) : slots.length === 0 ? (
+                        <div className="mt-3 p-6 bg-amber-50 border-2 border-amber-100 rounded-2xl flex flex-col items-center text-center gap-3">
+                          <AlertCircle className="w-10 h-10 text-amber-500" />
                           <div>
-                            <p className="font-medium text-amber-800">Sin disponibilidad para esta fecha</p>
-                            <p className="text-sm text-amber-600">Por favor selecciona otra fecha</p>
+                            <p className="font-bold text-amber-900 uppercase tracking-tight">Día NO Laboral</p>
+                            <p className="text-sm text-amber-700 font-medium">Este proveedor no tiene turnos configurados para este día. Prueba con otra fecha.</p>
                           </div>
                         </div>
                       ) : (
-                        <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
                           {slots.map((slot) => (
                             <button
                               key={slot.time}
@@ -278,20 +286,35 @@ const Booking = () => {
                               disabled={!slot.available}
                               onClick={() => setFormData({ ...formData, time: slot.time })}
                               className={`
-                                relative p-3 rounded-xl text-sm font-medium transition-all
+                                relative p-4 rounded-2xl text-left transition-all group
                                 ${formData.time === slot.time
-                                  ? 'bg-[#28B463] text-white ring-2 ring-[#28B463] ring-offset-2'
+                                  ? 'bg-slate-900 text-white shadow-xl shadow-slate-200 scale-[1.02]'
                                   : slot.available
-                                    ? 'bg-white border-2 border-stone-200 hover:border-[#28B463] text-stone-700'
-                                    : 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                                    ? 'bg-white border-2 border-stone-100 hover:border-[#28B463] hover:bg-emerald-50/30'
+                                    : 'bg-stone-50 border-stone-100 opacity-40 cursor-not-allowed'
                                 }
                               `}
                             >
-                              <div>{formatTime(slot.time)}</div>
-                              <div className={`text-xs mt-1 flex items-center justify-center gap-1 ${formData.time === slot.time ? 'text-white/80' : 'text-stone-500'}`}>
-                                <Users className="w-3 h-3" />
-                                {slot.capacity_remaining} cupos
+                              <div className="flex flex-col">
+                                <span className={`text-lg font-black ${formData.time === slot.time ? 'text-white' : 'text-slate-700'}`}>
+                                  {formatTime(slot.time)}
+                                </span>
+                                <div className={`flex items-center gap-1 mt-1 font-bold text-[10px] uppercase tracking-tighter ${formData.time === slot.time ? 'text-emerald-400' : 'text-stone-400 group-hover:text-[#28B463]'}`}>
+                                  {slot.available ? (
+                                    <>
+                                      <Users className="w-3 h-3" />
+                                      {slot.capacity_remaining} Disponibles
+                                    </>
+                                  ) : (
+                                    'Agotado'
+                                  )}
+                                </div>
                               </div>
+                              {formData.time === slot.time && (
+                                <div className="absolute top-2 right-2">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                </div>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -398,7 +421,8 @@ const Booking = () => {
 
       {/* Payment Dialog */}
       <Dialog open={showPayment} onOpenChange={setShowPayment}>
-        <DialogContent className="sm:max-w-md p-0 bg-transparent border-0 shadow-none">
+        <DialogContent className="sm:max-w-md p-0 bg-transparent border-0 shadow-none" aria-describedby={undefined}>
+          <DialogTitle className="sr-only">Pago de Reserva</DialogTitle>
           {createdBooking && (
             <PaymentSelector
               bookingId={createdBooking.id}

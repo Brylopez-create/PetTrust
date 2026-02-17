@@ -6,13 +6,13 @@ import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Camera, X, Loader2, Upload, Trash2, Image } from 'lucide-react';
 
-const PhotoGallery = ({ 
-  entityType, 
-  entityId, 
-  profileImage, 
-  galleryImages = [], 
+const PhotoGallery = ({
+  entityType,
+  entityId,
+  profileImage,
+  galleryImages = [],
   editable = false,
-  onPhotoUpdated 
+  onPhotoUpdated
 }) => {
   const { user } = useContext(AuthContext);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -37,7 +37,7 @@ const PhotoGallery = ({
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64 = event.target.result.split(',')[1];
-        
+
         await axios.post(`${API}/photos/upload`, {
           entity_type: entityType,
           entity_id: entityId,
@@ -59,7 +59,7 @@ const PhotoGallery = ({
 
   const loadPhoto = async (photoId) => {
     if (loadedPhotos[photoId]) return;
-    
+
     try {
       const response = await axios.get(`${API}/photos/${photoId}`);
       setLoadedPhotos(prev => ({
@@ -95,9 +95,9 @@ const PhotoGallery = ({
         <div className="relative inline-block">
           <div className="w-32 h-32 rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-100 to-stone-100">
             {profileImage ? (
-              <img 
-                src={profileImage} 
-                alt="Perfil" 
+              <img
+                src={profileImage}
+                alt="Perfil"
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -106,7 +106,7 @@ const PhotoGallery = ({
               </div>
             )}
           </div>
-          
+
           {editable && (
             <button
               onClick={() => {
@@ -160,8 +160,8 @@ const PhotoGallery = ({
                 className="aspect-square rounded-xl overflow-hidden bg-stone-100 hover:opacity-90 transition-opacity"
               >
                 {loadedPhotos[photoId] ? (
-                  <img 
-                    src={loadedPhotos[photoId]} 
+                  <img
+                    src={loadedPhotos[photoId]}
                     alt={`Galería ${index + 1}`}
                     className="w-full h-full object-cover"
                   />
@@ -186,7 +186,7 @@ const PhotoGallery = ({
           </DialogHeader>
 
           <div className="space-y-4">
-            <div 
+            <div
               onClick={() => !uploading && fileInputRef.current?.click()}
               className={`border-2 border-dashed border-stone-200 rounded-2xl p-8 text-center cursor-pointer hover:border-[#28B463]-400 hover:bg-emerald-50 transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
@@ -203,7 +203,7 @@ const PhotoGallery = ({
                 </>
               )}
             </div>
-            
+
             <input
               ref={fileInputRef}
               type="file"
@@ -217,10 +217,11 @@ const PhotoGallery = ({
 
       {/* View Photo Dialog */}
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
-        <DialogContent className="rounded-3xl max-w-lg p-0 overflow-hidden">
+        <DialogContent className="rounded-3xl max-w-lg p-0 overflow-hidden" aria-describedby={undefined}>
+          <DialogTitle className="sr-only">Ver Foto</DialogTitle>
           {selectedPhoto && loadedPhotos[selectedPhoto] && (
             <>
-              <img 
+              <img
                 src={loadedPhotos[selectedPhoto]}
                 alt="Foto"
                 className="w-full max-h-[70vh] object-contain bg-black"

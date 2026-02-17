@@ -20,14 +20,22 @@ import WalkersLanding from './pages/WalkersLanding';
 import Benefits from './pages/Benefits';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import IOSInstallBanner from './components/IOSInstallBanner';
 
 import { Capacitor } from '@capacitor/core';
 import Onboarding from './pages/Onboarding';
+import { startPerformanceMonitoring } from './utils/performanceMonitor';
+import { requestForToken, onMessageListener } from './firebase';
 
+// Iniciar monitoreo de métricas de rendimiento (Core Web Vitals)
+startPerformanceMonitoring();
 const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:8000'
   : 'https://pettrust-production.up.railway.app';
 export const API = `${BACKEND_URL}/api`;
+
+// Configuración de Seguridad: Permitir envío de Cookies HttpOnly (Defensa de Platino)
+axios.defaults.withCredentials = true;
 
 export const AuthContext = React.createContext(null);
 
@@ -40,21 +48,46 @@ function App() {
   const isMobileApp = Capacitor.isNativePlatform() || window.matchMedia('(display-mode: standalone)').matches;
 
   useEffect(() => {
+    // Soporte híbrido: Authorization Header (App Móvil) y Cookies HttpOnly (Web/PWA)
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      fetchUser();
-    } else {
-      setLoading(false);
     }
+
+    // Intentar recuperar sesión automáticamente al cargar
+    fetchUser();
   }, [token]);
 
   const fetchUser = async () => {
     try {
       const response = await axios.get(`${API}/auth/me`);
       setUser(response.data);
+
+      // Request Notification Permission & Token (Firebase)
+      try {
+        const fcmToken = await requestForToken();
+        if (fcmToken) {
+          // Send token to backend to update user profile
+          // We use a try-catch here to not block the app if token fails
+          await axios.put(`${API}/users/me/fcm-token`, { token: fcmToken });
+        }
+      } catch (err) {
+        console.log('Push notification setup failed', err);
+      }
+
+      onMessageListener().then(payload => {
+        // Show toast for foreground notification
+        toast(payload.notification.title, {
+          description: payload.notification.body,
+        });
+      }).catch(err => console.log('failed: ', err));
+
     } catch (error) {
       console.error('Error fetching user:', error);
-      logout();
+      // Don't logout immediately on error, allow retry or stay in loading state to prevent flash
+      // Only logout if 401
+      if (error.response && error.response.status === 401) {
+        logout();
+      }
     } finally {
       setLoading(false);
     }
@@ -67,11 +100,18 @@ function App() {
     axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    delete axios.defaults.headers.common['Authorization'];
+  const logout = async () => {
+    try {
+      // Notificar al backend para limpiar la Cookie HttpOnly
+      await axios.post(`${API}/auth/logout`);
+    } catch (error) {
+      console.error('Error during backend logout:', error);
+    } finally {
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+      delete axios.defaults.headers.common['Authorization'];
+    }
   };
 
   if (loading) {
@@ -85,6 +125,7 @@ function App() {
   return (
     <AuthContext.Provider value={{ user, token, login, logout }}>
       <BrowserRouter>
+        <IOSInstallBanner />
         <Routes>
           {/* Conditional Entry Point: If Mobile/PWA -> Onboarding, else -> Home */}
           <Route path="/" element={

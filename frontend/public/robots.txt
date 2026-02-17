@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /provider-dashboard
+Disallow: /crear-perfil
+Disallow: /tracking/
+Disallow: /reset-password
+Disallow: /forgot-password
+Disallow: /private/
+Disallow: /cdn-cgi/
+
+Sitemap: https://pettrust.co/sitemap.xml

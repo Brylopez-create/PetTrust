@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "studio-327226034-65d59",
+    "pettrust-bogota": "pettrust-bogota"
+  },
+  "targets": {
+    "studio-327226034-65d59": {
+      "hosting": {}
+    }
+  },
+  "etags": {}
+}

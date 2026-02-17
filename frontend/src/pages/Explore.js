@@ -8,7 +8,11 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Star, MapPin, Shield, CheckCircle2, Stethoscope, Home } from 'lucide-react';
+import { Input } from '../components/ui/input';
+import { Star, MapPin, Shield, CheckCircle2, Stethoscope, Home, Sparkles, Clock, Target } from 'lucide-react';
+import MatchBadge from '../components/MatchBadge';
+import MatchLoading from '../components/MatchLoading';
+import { toast } from 'sonner';
 
 const Explore = () => {
   const navigate = useNavigate();
@@ -19,10 +23,55 @@ const Explore = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('walkers');
   const [locationFilter, setLocationFilter] = useState(searchParams.get('location') || '');
+  const [matchingResults, setMatchingResults] = useState([]);
+  const [isMatching, setIsMatching] = useState(false);
+  const [pets, setPets] = useState([]);
+  const [selectedPet, setSelectedPet] = useState('');
+  const [searchDate, setSearchDate] = useState(new Date().toISOString().split('T')[0]);
+  const [searchTime, setSearchTime] = useState('10:00');
 
   useEffect(() => {
     fetchData();
+    fetchPets();
   }, [locationFilter]);
+
+  const fetchPets = async () => {
+    try {
+      const response = await axios.get(`${API}/pets`);
+      setPets(response.data);
+      if (response.data.length > 0) setSelectedPet(response.data[0].id);
+    } catch (error) {
+      console.error('Error fetching pets:', error);
+    }
+  };
+
+  const startPetMatch = async () => {
+    if (!selectedPet) {
+      toast.error('Debes seleccionar una mascota para el algoritmo PetMatch');
+      return;
+    }
+
+    setIsMatching(true);
+    // Simular tiempo de "Análisis profundo" para mejorar percepción de valor
+    await new Promise(r => setTimeout(r, 3500));
+
+    try {
+      const res = await axios.post(`${API}/v1/petmatch`, {
+        pet_id: selectedPet,
+        lat: 4.6097, // Mock coords para Bogotá Centro si no hay browser geo
+        lng: -74.0817,
+        date: searchDate,
+        time: searchTime
+      });
+      setMatchingResults(res.data);
+      toast.success('¡PetMatch ha encontrado los mejores paseadores para ti!');
+    } catch (error) {
+      console.error('Error in PetMatch:', error);
+      toast.error('Error al ejecutar el algoritmo de matching');
+    } finally {
+      setIsMatching(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -70,7 +119,12 @@ const Explore = () => {
           </div>
 
           {/* Content Side */}
-          <div className="w-2/3 sm:w-full p-3 sm:p-5 flex flex-col justify-between">
+          <div className="w-2/3 sm:w-full p-3 sm:p-5 flex flex-col justify-between relative">
+            {walker.match_score && (
+              <div className="absolute top-3 right-3 z-10 scale-90 sm:scale-100">
+                <MatchBadge score={walker.match_score} />
+              </div>
+            )}
             <div>
               <div className="flex items-start justify-between mb-1 sm:mb-2">
                 <div>
@@ -108,6 +162,13 @@ const Explore = () => {
                   </Badge>
                 )}
               </div>
+
+              {walker.distance_km !== undefined && (
+                <div className="flex items-center gap-1.5 text-[#28B463] font-bold text-xs mb-3">
+                  <Target className="w-4 h-4" />
+                  <span>A {walker.distance_km} km de distancia</span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-end justify-between pt-2 sm:pt-4 border-t border-stone-100 mt-auto">
@@ -302,6 +363,72 @@ const Explore = () => {
           </div>
         </div>
 
+        {activeTab === 'walkers' && (
+          <div className="mb-10 p-6 bg-gradient-to-br from-[#28B463]/5 to-[#0F4C75]/5 rounded-3xl border border-[#28B463]/10 shadow-sm overflow-hidden relative">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#28B463]/5 rounded-full blur-3xl"></div>
+            <div className="relative z-10 flex flex-col md:flex-row md:items-end gap-6">
+              <div className="flex-1 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="bg-[#28B463] p-1.5 rounded-lg">
+                    <Sparkles className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800">Cerebro PetMatch v1</h3>
+                </div>
+                <p className="text-sm text-slate-600 max-w-md">Nuestro algoritmo de nivel platino analiza geocerca, compatibilidad de especie y reputación real.</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-bold text-slate-400">¿Para quién?</label>
+                    <Select value={selectedPet} onValueChange={setSelectedPet}>
+                      <SelectTrigger className="h-10 bg-white/50 backdrop-blur-sm rounded-xl">
+                        <SelectValue placeholder="Mascota" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pets.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                        {pets.length === 0 && <SelectItem value="none" disabled>No tienes mascotas</SelectItem>}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-bold text-slate-400">¿Cuándo?</label>
+                    <div className="relative">
+                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <Input
+                        type="date"
+                        value={searchDate}
+                        onChange={(e) => setSearchDate(e.target.value)}
+                        className="h-10 pl-9 bg-white/50 backdrop-blur-sm rounded-xl border-stone-200"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-bold text-slate-400">Horario</label>
+                    <Select value={searchTime} onValueChange={setSearchTime}>
+                      <SelectTrigger className="h-10 bg-white/50 backdrop-blur-sm rounded-xl">
+                        <SelectValue placeholder="Hora" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['08:00', '09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'].map(t => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                onClick={startPetMatch}
+                disabled={isMatching || pets.length === 0}
+                className="bg-[#28B463] text-white hover:bg-[#1E8449] h-12 px-8 rounded-2xl shadow-lg shadow-emerald-200 flex items-center gap-2 group"
+              >
+                {isMatching ? 'Puntuando...' : 'Encontrar mi Par'}
+                <Sparkles className={`w-4 h-4 ${isMatching ? 'animate-spin' : 'group-hover:scale-125 transition-transform'}`} />
+              </Button>
+            </div>
+          </div>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-2xl grid-cols-3 mb-8 h-12 bg-stone-100 p-1 rounded-2xl">
             <TabsTrigger className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm" value="walkers" data-testid="walkers-tab">Paseadores ({walkers.length})</TabsTrigger>
@@ -310,9 +437,24 @@ const Explore = () => {
           </TabsList>
 
           <TabsContent value="walkers">
-            {loading ? (
+            {isMatching ? (
+              <MatchLoading />
+            ) : loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#28B463]-400 border-t-transparent mx-auto"></div>
+              </div>
+            ) : matchingResults.length > 0 ? (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-[#28B463]" />
+                    Mejores Coincidencias para Ti
+                  </h3>
+                  <Button variant="ghost" size="sm" onClick={() => setMatchingResults([])} className="text-stone-400">Ver todos los paseadores</Button>
+                </div>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {matchingResults.map(res => <WalkerCard key={res.walker.id} walker={{ ...res.walker, match_score: res.match_score, distance_km: res.distance_km }} />)}
+                </div>
               </div>
             ) : walkers.length === 0 ? (
               <div className="text-center py-12">

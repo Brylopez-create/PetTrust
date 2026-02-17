@@ -16,6 +16,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PinGenerator, LiveGpsTracker } from '../components/WalkTracking';
 import ReviewForm from '../components/ReviewForm';
+import MapSkeleton from '../components/MapSkeleton';
+import { useGpsSmoothing } from '../hooks/useGpsSmoothing';
 
 // Fix Leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -127,7 +129,9 @@ const Tracking = () => {
 
   const statusInfo = getStatusInfo(booking.status);
   const StatusIcon = statusInfo.icon;
-  const currentLocation = liveLocation?.current_location || booking.walker_current_location;
+  const rawLocation = liveLocation?.current_location || booking.walker_current_location;
+  const smoothedLocation = useGpsSmoothing(rawLocation, 10000);
+  const currentLocation = smoothedLocation || rawLocation;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-white">
@@ -240,18 +244,7 @@ const Tracking = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="h-[400px] bg-stone-100 flex flex-col items-center justify-center text-stone-400">
-                      <div className="relative mb-4">
-                        <div className="absolute inset-0 bg-[#28B463] blur-2xl opacity-20 rounded-full animate-pulse"></div>
-                        <MapPin className="w-16 h-16 relative z-10 text-stone-300" />
-                      </div>
-                      <p className="font-medium text-stone-500 mb-1">Esperando ubicación...</p>
-                      <p className="text-sm text-stone-400 max-w-xs text-center px-4">
-                        {booking.status === 'confirmed'
-                          ? 'El paseador debe iniciar el paseo usando el PIN'
-                          : 'Conectando con el GPS del paseador...'}
-                      </p>
-                    </div>
+                    <MapSkeleton />
                   )}
                 </div>
               </CardContent>
