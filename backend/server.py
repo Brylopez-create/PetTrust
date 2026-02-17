@@ -43,8 +43,10 @@ app.add_middleware(
         "http://localhost:3000",
         "https://pettrust.vercel.app",
         "https://pet-trust-7-git-main-brayans-projects-0076d97c.vercel.app",
-        "https://*.vercel.app"  # Allow all Vercel preview deployments
+        "https://pettrust-bogota.web.app",
+        "https://pettrust-bogota.firebaseapp.com",
     ],
+    allow_origin_regex=r"https://.*\.vercel\.app",  # All Vercel preview deployments
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -3272,16 +3274,7 @@ async def mark_all_notifications_read(current_user: dict = Depends(get_current_u
     
     return {"message": "Todas las notificaciones marcadas como leídas"}
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    # Use the origins list defined at the top of the file
-    allow_origins=origins,
-    # Also allow regex for flexible development/preview environments
-    allow_origin_regex="https?://.*",
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -3797,13 +3790,8 @@ async def seed_admin_user(secret_key: str):
     await db.users.insert_one(admin_user)
     return {"message": "Admin creado exitosamente", "email": admin_email}
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
