@@ -24,7 +24,9 @@ import ResetPassword from './pages/ResetPassword';
 import { Capacitor } from '@capacitor/core';
 import Onboarding from './pages/Onboarding';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:8000'
+  : 'https://pettrust-production.up.railway.app';
 export const API = `${BACKEND_URL}/api`;
 
 export const AuthContext = React.createContext(null);
