@@ -3652,16 +3652,7 @@ async def mark_all_notifications_read(current_user: dict = Depends(get_current_u
     
     return {"message": "Todas las notificaciones marcadas como leídas"}
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    # Use the origins list defined at the top of the file
-    allow_origins=origins,
-    # Also allow regex for flexible development/preview environments
-    allow_origin_regex="https?://.*",
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -4143,13 +4134,8 @@ async def seed_admin_user(secret_key: str):
     await db.users.insert_one(admin_user)
     return {"message": "Admin creado exitosamente", "email": admin_email}
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

@@ -29,7 +29,6 @@ import { requestForToken, onMessageListener } from './firebase';
 
 // Iniciar monitoreo de métricas de rendimiento (Core Web Vitals)
 startPerformanceMonitoring();
-
 const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:8000'
   : 'https://pettrust-production.up.railway.app';

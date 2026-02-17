@@ -8,6 +8,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Input } from '../components/ui/input';
 import { Star, MapPin, Shield, CheckCircle2, Stethoscope, Home, Sparkles, Clock, Target } from 'lucide-react';
 import MatchBadge from '../components/MatchBadge';
 import MatchLoading from '../components/MatchLoading';
