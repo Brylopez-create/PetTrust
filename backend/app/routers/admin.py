@@ -169,3 +169,136 @@ async def review_payment(
     await db.notifications.insert_one(notification_owner.model_dump())
     
     return {"message": f"Pago {new_status} y notificaciones enviadas", "action": action}
+
+
+@router.post("/seed/demo")
+async def seed_demo_data():
+    """Seed demo data for testing (Walkers and Daycares)"""
+    existing_walker = await db.walkers.find_one({"name": "Carlos Mendoza"}, {"_id": 0})
+    if existing_walker:
+        return {"message": "Datos demo ya existen"}
+    
+    demo_walkers = [
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": str(uuid.uuid4()),
+            "name": "Carlos Mendoza",
+            "bio": "Paseador profesional con 5 años de experiencia. Amante de los perros grandes y pequeños.",
+            "experience_years": 5,
+            "certifications": ["Primeros Auxilios Caninos", "Comportamiento Animal"],
+            "location": "Chapinero, Bogotá",
+            "verified": True,
+            "insured": True,
+            "rating": 4.9,
+            "reviews_count": 127,
+            "price_per_walk": 25000,
+            "verification_status": "approved",
+            "capacity_max": 4,
+            "capacity_current": 1,
+            "radius_km": 5.0,
+            "is_active": True,
+            "coordinates": {"lat": 4.6486, "lng": -74.0628},
+            "available_slots": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": str(uuid.uuid4()),
+            "name": "María López",
+            "bio": "Especialista en razas pequeñas y cachorros. Paseos personalizados.",
+            "experience_years": 3,
+            "certifications": ["Entrenamiento Básico", "Primeros Auxilios"],
+            "location": "Usaquén, Bogotá",
+            "verified": True,
+            "insured": True,
+            "rating": 4.8,
+            "reviews_count": 89,
+            "price_per_walk": 30000,
+            "verification_status": "approved",
+            "capacity_max": 3,
+            "capacity_current": 0,
+            "radius_km": 4.0,
+            "is_active": True,
+            "coordinates": {"lat": 4.6975, "lng": -74.0323},
+            "available_slots": ["08:00", "09:00", "10:00", "15:00", "16:00"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+    ]
+    
+    demo_daycares = [
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": str(uuid.uuid4()),
+            "name": "Pet Paradise Bogotá",
+            "description": "Guardería premium con amplias zonas verdes y cámaras 24/7.",
+            "location": "Chicó, Bogotá",
+            "amenities": ["Piscina", "Zona de Juegos", "Spa", "Alimentación Premium"],
+            "has_cameras": True,
+            "has_transportation": True,
+            "has_green_areas": True,
+            "verified": True,
+            "insured": True,
+            "rating": 4.9,
+            "reviews_count": 203,
+            "price_per_day": 85000,
+            "verification_status": "approved",
+            "capacity_total": 30,
+            "capacity_available": 25,
+            "pickup_service": True,
+            "pickup_price": 15000,
+            "pickup_radius_km": 10.0,
+            "coordinates": {"lat": 4.6697, "lng": -74.0520},
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "user_id": str(uuid.uuid4()),
+            "name": "Happy Paws Daycare",
+            "description": "Cuidado amoroso para tu mascota mientras trabajas.",
+            "location": "Santa Bárbara, Bogotá",
+            "amenities": ["Zona de Descanso", "Juegos Interactivos", "Snacks"],
+            "has_cameras": True,
+            "has_transportation": False,
+            "has_green_areas": True,
+            "verified": True,
+            "insured": True,
+            "rating": 4.7,
+            "reviews_count": 156,
+            "price_per_day": 65000,
+            "verification_status": "approved",
+            "capacity_total": 20,
+            "capacity_available": 18,
+            "pickup_service": False,
+            "pickup_price": 0,
+            "pickup_radius_km": 0,
+            "coordinates": {"lat": 4.6845, "lng": -74.0456},
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+    ]
+    
+    await db.walkers.insert_many(demo_walkers)
+    await db.daycares.insert_many(demo_daycares)
+    
+    # Check for admin
+    admin_exists = await db.users.find_one({"email": "admin@pettrust.com"}, {"_id": 0})
+    if not admin_exists:
+        admin_user = {
+            "id": str(uuid.uuid4()),
+            "email": "admin@pettrust.com",
+            # Assuming hash_password is imported or we use fixed string for demo/test
+            # Ideally verify imports. hash_password imported at top of file.
+            "password": hash_password("admin123"),
+            "name": "Admin PetTrust",
+            "role": "admin",
+            "phone": "+57 300 000 0000",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.users.insert_one(admin_user)
+    
+    return {
+        "message": "Datos demo creados exitosamente",
+        "walkers_created": len(demo_walkers),
+        "daycares_created": len(demo_daycares)
+    }

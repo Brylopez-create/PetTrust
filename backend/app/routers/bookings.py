@@ -53,6 +53,7 @@ async def create_booking(booking_data: BookingCreate, current_user: dict = Depen
         
     service = await db[collection].find_one({"id": booking_data.service_id}, {"_id": 0})
     
+    # Check availability
     availability = await check_availability(
         service_id=booking_data.service_id,
         service_type=booking_data.service_type,
@@ -65,11 +66,17 @@ async def create_booking(booking_data: BookingCreate, current_user: dict = Depen
             detail=f"No hay disponibilidad. {availability.get('reason', '')}"
         )
     
+    # Generate 6-digit PIN for this booking
+    import secrets
+    verification_pin = ''.join([str(secrets.randbelow(10)) for _ in range(6)])
+    
     booking = Booking(
         owner_id=current_user["id"],
         owner_name=current_user["name"],
         pet_name=pet["name"],
         service_name=service.get("name") if service else "Servicio",
+        verification_pin=verification_pin,
+        pin_generated_at=datetime.now(timezone.utc).isoformat(),
         **booking_data.model_dump()
     )
     await db.bookings.insert_one(booking.model_dump())
@@ -86,6 +93,10 @@ async def get_my_bookings(current_user: dict = Depends(get_current_user)):
         bookings = await db.bookings.find({}, {"_id": 0}).to_list(100)
     else:
         profile_collection = "walkers" if current_user["role"] == "walker" else "daycares"
+        # Vet fallback
+        if current_user["role"] == "vet":
+            profile_collection = "vets"
+            
         profile = await db[profile_collection].find_one({"user_id": current_user["id"]}, {"_id": 0})
         if not profile:
             return []
@@ -100,6 +111,29 @@ async def get_booking(booking_id: str, current_user: dict = Depends(get_current_
     if not booking:
         raise HTTPException(status_code=404, detail="Reserva no encontrada")
     return booking
+
+
+@router.post("/{booking_id}/verify-pin")
+async def verify_pin(booking_id: str, pin: str, current_user: dict = Depends(get_current_user)):
+    """Verify start PIN for a booking"""
+    booking = await db.bookings.find_one({"id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+        
+    if booking["verification_pin"] == pin:
+        await db.bookings.update_one(
+            {"id": booking_id},
+            {
+                "$set": {
+                    "pin_verified_at": datetime.now(timezone.utc).isoformat(),
+                    "status": "in_progress",
+                    "started_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        return {"success": True, "message": "PIN verificado correctamente"}
+    else:
+        return {"success": False, "message": "PIN incorrecto"}
 
 
 @router.patch("/{booking_id}/status")

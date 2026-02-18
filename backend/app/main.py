@@ -31,7 +31,9 @@ from app.routers import (
     reviews,
     chat,
     wellness,
-    prospects
+    prospects,
+    providers,
+    uploads
 )
 
 # Rate Limiter
@@ -78,10 +80,11 @@ app.include_router(walkers.router, prefix="/api")
 app.include_router(daycares.router, prefix="/api")
 app.include_router(vets.router, prefix="/api")
 app.include_router(pets.router, prefix="/api")
-app.include_router(reviews.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(wellness.router, prefix="/api")
 app.include_router(prospects.router, prefix="/api")
+app.include_router(providers.router, prefix="/api")
+app.include_router(uploads.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 
 # Root endpoint
